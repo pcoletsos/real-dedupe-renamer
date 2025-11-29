@@ -26,6 +26,7 @@ imports:
  &#8226;   <a href="#collections">collections</a>
  &#8226;   <a href="#collections.abc">collections.abc</a>
  &#8226;   <a href="#copyreg">copyreg</a>
+ &#8226;   <a href="#csv">csv</a>
  &#8226;   <a href="#datetime">datetime</a>
  &#8226;   <a href="#encodings">encodings</a>
  &#8226;   <a href="#encodings.aliases">encodings.aliases</a>
@@ -155,6 +156,7 @@ imports:
  &#8226;   <a href="#hashlib">hashlib</a>
  &#8226;   <a href="#heapq">heapq</a>
  &#8226;   <a href="#io">io</a>
+ &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#keyword">keyword</a>
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
@@ -180,7 +182,6 @@ imports:
  &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
  &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
- &#8226;   <a href="#tkinter.scrolledtext">tkinter.scrolledtext</a>
  &#8226;   <a href="#tkinter.ttk">tkinter.ttk</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
@@ -625,6 +626,23 @@ imported by:
 imported by:
     <a href="#importlib._bootstrap_external">importlib._bootstrap_external</a>
  &#8226;   <a href="#io">io</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="_json"></a>
+  <tt>_json</tt> <span class="moduletype"><i>(builtin module)</i></span>  <div class="import">
+imports:
+    <a href="#json.decoder">json.decoder</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#json.decoder">json.decoder</a>
+ &#8226;   <a href="#json.encoder">json.encoder</a>
+ &#8226;   <a href="#json.scanner">json.scanner</a>
 
   </div>
 
@@ -1481,6 +1499,7 @@ imported by:
  &#8226;   <a href="#encodings.utf_8_sig">encodings.utf_8_sig</a>
  &#8226;   <a href="#encodings.uu_codec">encodings.uu_codec</a>
  &#8226;   <a href="#encodings.zlib_codec">encodings.zlib_codec</a>
+ &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#pickle">pickle</a>
  &#8226;   <a href="#tokenize">tokenize</a>
 
@@ -1679,7 +1698,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#importlib.metadata">importlib.metadata</a>
+    <a href="#delete_real_duplicates.py">delete_real_duplicates.py</a>
+ &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
 
   </div>
 
@@ -5903,6 +5923,85 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="json"></a>
+  <a target="code" href="///C:/Python312/Lib/json/__init__.py" type="text/plain"><tt>json</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#codecs">codecs</a>
+ &#8226;   <a href="#json.decoder">json.decoder</a>
+ &#8226;   <a href="#json.encoder">json.encoder</a>
+ &#8226;   <a href="#json.scanner">json.scanner</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#delete_real_duplicates.py">delete_real_duplicates.py</a>
+ &#8226;   <a href="#json.decoder">json.decoder</a>
+ &#8226;   <a href="#json.encoder">json.encoder</a>
+ &#8226;   <a href="#json.scanner">json.scanner</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="json.decoder"></a>
+  <a target="code" href="///C:/Python312/Lib/json/decoder.py" type="text/plain"><tt>json.decoder</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#_json">_json</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#json.scanner">json.scanner</a>
+ &#8226;   <a href="#re">re</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#_json">_json</a>
+ &#8226;   <a href="#json">json</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="json.encoder"></a>
+  <a target="code" href="///C:/Python312/Lib/json/encoder.py" type="text/plain"><tt>json.encoder</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#_json">_json</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#re">re</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#json">json</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="json.scanner"></a>
+  <a target="code" href="///C:/Python312/Lib/json/scanner.py" type="text/plain"><tt>json.scanner</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#_json">_json</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#re">re</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#json">json</a>
+ &#8226;   <a href="#json.decoder">json.decoder</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="keyword"></a>
   <a target="code" href="///C:/Python312/Lib/keyword.py" type="text/plain"><tt>keyword</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -6577,6 +6676,9 @@ imported by:
  &#8226;   <a href="#importlib.metadata._text">importlib.metadata._text</a>
  &#8226;   <a href="#inspect">inspect</a>
  &#8226;   <a href="#ipaddress">ipaddress</a>
+ &#8226;   <a href="#json.decoder">json.decoder</a>
+ &#8226;   <a href="#json.encoder">json.encoder</a>
+ &#8226;   <a href="#json.scanner">json.scanner</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#pathlib">pathlib</a>
@@ -7569,7 +7671,6 @@ imports:
  &#8226;   <a href="#tkinter.constants">tkinter.constants</a>
  &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
  &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
- &#8226;   <a href="#tkinter.scrolledtext">tkinter.scrolledtext</a>
  &#8226;   <a href="#tkinter.ttk">tkinter.ttk</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
@@ -7583,7 +7684,6 @@ imported by:
  &#8226;   <a href="#tkinter.dialog">tkinter.dialog</a>
  &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
  &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
- &#8226;   <a href="#tkinter.scrolledtext">tkinter.scrolledtext</a>
  &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
  &#8226;   <a href="#tkinter.ttk">tkinter.ttk</a>
 
@@ -7620,7 +7720,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.scrolledtext">tkinter.scrolledtext</a>
 
   </div>
 
@@ -7679,24 +7778,6 @@ imported by:
     <a href="#delete_real_duplicates.py">delete_real_duplicates.py</a>
  &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="tkinter.scrolledtext"></a>
-  <a target="code" href="///C:/Python312/Lib/tkinter/scrolledtext.py" type="text/plain"><tt>tkinter.scrolledtext</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.constants">tkinter.constants</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#delete_real_duplicates.py">delete_real_duplicates.py</a>
- &#8226;   <a href="#tkinter">tkinter</a>
 
   </div>
 
