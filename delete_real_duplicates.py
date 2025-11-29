@@ -172,6 +172,15 @@ class DuplicateCleanerUI:
         self.style = ttk.Style(root)
         self.style.configure("Primary.TButton", padding=(12, 8), font=("Segoe UI", 10, "bold"))
         self.style.configure("Danger.TButton", padding=(12, 8), font=("Segoe UI", 10, "bold"))
+        # Table styling: subtle borders on headings/cells to clarify column boundaries.
+        self.style.configure(
+            "ColumnLines.Treeview",
+            bordercolor="#d0d0d0",
+            darkcolor="#d0d0d0",
+            lightcolor="#d0d0d0",
+            rowheight=22,
+        )
+        self.style.configure("ColumnLines.Treeview.Heading", bordercolor="#d0d0d0", relief="solid")
 
         self.folder_var = tk.StringVar(value=str(default_downloads_folder()))
         self.days_var = tk.IntVar(value=2)
@@ -182,11 +191,13 @@ class DuplicateCleanerUI:
         self.hash_limit_enabled = tk.BooleanVar(value=True)
         self.hash_max_mb = tk.IntVar(value=500)
         self.skip_same_folder_prompt = tk.BooleanVar(value=False)
+        self.rename_kept_enabled = tk.BooleanVar(value=False)
         self.filter_var = tk.StringVar(value="")
         self._scanning = False
         self._last_hash_skipped = 0
         self._last_folder: Path | None = None
         self._last_days: int = 0
+        self._last_scan_seconds: float | None = None
         self.duplicates: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]] = {}
         self._item_meta: Dict[str, Dict[str, object]] = {}
         self._sort_directions: Dict[str, bool] = {}
@@ -267,10 +278,15 @@ class DuplicateCleanerUI:
             text="Skip keep-choice dialog when duplicates are in the same folder (auto keep newest)",
             variable=self.skip_same_folder_prompt,
         ).grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        ttk.Checkbutton(
+            frm,
+            text="Rename kept files after delete (pattern: name_YYYY-MM-DD_HH-MM-SS_###.ext)",
+            variable=self.rename_kept_enabled,
+        ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(2, 6))
 
         # Buttons.
         btn_frame = ttk.Frame(frm)
-        btn_frame.grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 6))
+        btn_frame.grid(row=5, column=0, columnspan=3, sticky="w", pady=(6, 4))
         self.scan_btn = ttk.Button(btn_frame, text="Scan", command=self._scan, style="Primary.TButton", width=14)
         self.scan_btn.grid(row=0, column=0, padx=(0, 10))
         self.delete_btn = ttk.Button(
@@ -281,14 +297,16 @@ class DuplicateCleanerUI:
         # Notices and summary.
         self.notice_var = tk.StringVar(value="")
         ttk.Label(frm, textvariable=self.notice_var, foreground="#b36200").grid(
-            row=5, column=0, columnspan=3, sticky="w", pady=(6, 0)
+            row=6, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
 
         summary_frame = ttk.Frame(frm)
-        summary_frame.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(2, 2))
+        summary_frame.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(2, 2))
         summary_frame.columnconfigure(0, weight=1)
         self.summary_var = tk.StringVar(value="Scan results will appear here.")
-        ttk.Label(summary_frame, textvariable=self.summary_var).grid(row=0, column=0, sticky="w")
+        ttk.Label(summary_frame, textvariable=self.summary_var, wraplength=900, justify="left").grid(
+            row=0, column=0, sticky="w"
+        )
         actions = ttk.Frame(summary_frame)
         actions.grid(row=0, column=1, sticky="e")
         self.copy_btn = ttk.Button(actions, text="Copy report", command=self._copy_report, state="disabled")
@@ -302,20 +320,22 @@ class DuplicateCleanerUI:
 
         # Filter.
         filter_frame = ttk.Frame(frm)
-        filter_frame.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(0, 4))
+        filter_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(0, 4))
         ttk.Label(filter_frame, text="Filter (name or folder contains):").grid(row=0, column=0, sticky="w")
         self.filter_entry = ttk.Entry(filter_frame, textvariable=self.filter_var, width=40, state="disabled")
         self.filter_entry.grid(row=0, column=1, sticky="w", padx=(4, 0))
         self.filter_var.trace_add("write", lambda *_: self._apply_filter())
 
         tree_frame = ttk.Frame(frm)
-        tree_frame.grid(row=8, column=0, columnspan=3, sticky="nsew", pady=(0, 6))
-        frm.rowconfigure(8, weight=1)
+        tree_frame.grid(row=9, column=0, columnspan=3, sticky="nsew", pady=(0, 6))
+        frm.rowconfigure(9, weight=1)
         tree_frame.rowconfigure(0, weight=1)
         tree_frame.columnconfigure(0, weight=1)
 
         columns = ("location", "modified", "size")
-        self.results_tree = ttk.Treeview(tree_frame, columns=columns, show="tree headings", selectmode="browse")
+        self.results_tree = ttk.Treeview(
+            tree_frame, columns=columns, show="tree headings", selectmode="browse", style="ColumnLines.Treeview"
+        )
         self.results_tree.heading("#0", text="File / Group", anchor="w")
         self.results_tree.heading("location", text="Folder / Criteria", anchor="w")
         self.results_tree.heading("modified", text="Modified", anchor="w")
@@ -351,6 +371,7 @@ class DuplicateCleanerUI:
                 self.hash_limit_enabled.set(bool(opts.get("hash_limit_enabled", self.hash_limit_enabled.get())))
                 self.hash_max_mb.set(int(opts.get("hash_max_mb", self.hash_max_mb.get())))
                 self.skip_same_folder_prompt.set(bool(opts.get("skip_same_folder_prompt", self.skip_same_folder_prompt.get())))
+                self.rename_kept_enabled.set(bool(opts.get("rename_kept_enabled", self.rename_kept_enabled.get())))
         except Exception:
             # Ignore corrupt settings; fall back to defaults.
             pass
@@ -366,6 +387,7 @@ class DuplicateCleanerUI:
             "hash_limit_enabled": bool(self.hash_limit_enabled.get()),
             "hash_max_mb": int(self.hash_max_mb.get()),
             "skip_same_folder_prompt": bool(self.skip_same_folder_prompt.get()),
+            "rename_kept_enabled": bool(self.rename_kept_enabled.get()),
         }
         try:
             SETTINGS_PATH.write_text(json.dumps(opts, indent=2), encoding="utf-8")
@@ -396,6 +418,48 @@ class DuplicateCleanerUI:
             self._spinner_job = None
         self.scan_btn.configure(text="Scan")
         self._spinner_idx = 0
+
+    def _rename_conflicting_kept_files(self, kept: List[Path], deleting: List[Path]) -> List[Tuple[Path, Path]]:
+        """
+        Auto-rename kept files using the configured pattern. Always resolves same-name conflicts;
+        when enabled, also renames all kept files to the pattern so names are unique and time-stamped.
+        Pattern: base_YYYY-MM-DD_HH-MM-SS_###.ext
+        """
+        timestamp = _dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        rename_actions: List[Tuple[Path, Path]] = []
+        errors: List[str] = []
+
+        # Group kept files by base name.
+        groups: Dict[str, List[Path]] = {}
+        for path in kept:
+            groups.setdefault(path.name, []).append(path)
+
+        # Track occupied targets to avoid collisions (include deleting targets too).
+        occupied: set[Path] = set(p.resolve() for p in kept + deleting if p.exists())
+
+        for name, paths in groups.items():
+            sorted_paths = sorted(paths)
+            stem = Path(name).stem
+            suffix = Path(name).suffix
+            counter = 1
+            # If renaming is enabled, rename all kept files; otherwise rename only conflicts (beyond the first).
+            rename_list = sorted_paths if self.rename_kept_enabled.get() else sorted_paths[1:]
+            for path in rename_list:
+                while True:
+                    candidate = path.with_name(f"{stem}_{timestamp}_{counter:03d}{suffix}")
+                    counter += 1
+                    if candidate.resolve() not in occupied:
+                        break
+                try:
+                    path.rename(candidate)
+                    occupied.add(candidate.resolve())
+                    rename_actions.append((path, candidate))
+                except Exception as exc:
+                    errors.append(f"{path} -> {candidate} ({exc})")
+
+        if errors:
+            self._error("Rename issues", "Some files could not be renamed:\n" + "\n".join(errors))
+        return rename_actions
     def _browse_folder(self) -> None:
         folder = filedialog.askdirectory(initialdir=self.folder_var.get() or str(Path.cwd()))
         if folder:
@@ -427,6 +491,7 @@ class DuplicateCleanerUI:
         self._item_meta.clear()
         self.summary_var.set("Scanning...")
         self.notice_var.set("")
+        self._last_scan_seconds = None
 
         thread = threading.Thread(
             target=self._run_scan_thread,
@@ -440,6 +505,7 @@ class DuplicateCleanerUI:
 
     def _run_scan_thread(self, folder: Path, days: int) -> None:
         try:
+            start = _dt.datetime.now()
             entries = list(gather_recent_files(folder, days))
             hash_limit = (
                 self.hash_max_mb.get() * 1024 * 1024 if self.use_hash.get() and self.hash_limit_enabled.get() else None
@@ -457,7 +523,8 @@ class DuplicateCleanerUI:
             self.root.after(0, self._finish_scan)
             return
 
-        self.root.after(0, lambda: self._on_scan_complete(folder, days, duplicates, hash_skipped))
+        elapsed = (_dt.datetime.now() - start).total_seconds()
+        self.root.after(0, lambda: self._on_scan_complete(folder, days, duplicates, hash_skipped, elapsed))
 
     def _on_scan_complete(
         self,
@@ -465,9 +532,11 @@ class DuplicateCleanerUI:
         days: int,
         duplicates: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]],
         hash_skipped: int,
+        elapsed_seconds: float,
     ) -> None:
         self.duplicates = duplicates
         self._last_hash_skipped = hash_skipped
+        self._last_scan_seconds = elapsed_seconds
         self._last_folder = folder
         self._last_days = days
         self._render_results(folder, days)
@@ -497,6 +566,13 @@ class DuplicateCleanerUI:
             f"Found {len(self.duplicates)} duplicate group(s) covering {total_dupes} "
             f"deletable file(s) in {folder} (last {days} day(s))."
         )
+        if self._last_scan_seconds is not None:
+            if self._last_scan_seconds < 1:
+                summary += f" Scan time: {self._last_scan_seconds:.2f} s."
+            elif self._last_scan_seconds < 60:
+                summary += f" Scan time: {self._last_scan_seconds:.1f} s."
+            else:
+                summary += f" Scan time: {self._last_scan_seconds/60:.1f} min."
         if self._last_hash_skipped:
             summary += f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit."
             self.notice_var.set("Hashing skipped for some large files due to the size cap.")
@@ -793,11 +869,14 @@ class DuplicateCleanerUI:
 
         # Decide which files to delete based on user choices.
         to_delete: List[Path] = []
+        to_keep: List[Path] = []
         for key, files in self.duplicates.items():
             selected_keep = keep_choices.get(key)
             for path, _, _ in files:
                 if path != selected_keep:
                     to_delete.append(path)
+                else:
+                    to_keep.append(path)
 
         total_size = sum(path.stat().st_size for path in to_delete if path.exists())
         if not to_delete:
@@ -813,8 +892,14 @@ class DuplicateCleanerUI:
         if not confirm:
             return
 
+        rename_report: List[Tuple[Path, Path]] = []
+        if self.rename_kept_enabled.get():
+            rename_report = self._rename_conflicting_kept_files(to_keep, to_delete)
         delete_files(to_delete, on_error=self._error)
-        self._info("Done", f"Deleted {len(to_delete)} duplicate file(s).")
+        msg = f"Deleted {len(to_delete)} duplicate file(s)."
+        if rename_report:
+            msg += f"\nRenamed {len(rename_report)} kept file(s) with name conflicts."
+        self._info("Done", msg)
         # Refresh view after deletion.
         self._scan()
 
