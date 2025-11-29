@@ -174,11 +174,21 @@ class DuplicateCleanerUI:
         self.use_mtime = tk.BooleanVar(value=False)
         self.hash_limit_enabled = tk.BooleanVar(value=True)
         self.hash_max_mb = tk.IntVar(value=500)
+        self.skip_same_folder_prompt = tk.BooleanVar(value=False)
         self._scanning = False
         self._last_hash_skipped = 0
         self.duplicates: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]] = {}
 
+        self._build_menu()
         self._build_layout()
+
+    def _build_menu(self) -> None:
+        menubar = tk.Menu(self.root)
+        help_menu = tk.Menu(menubar, tearoff=False)
+        help_menu.add_command(label="How to use", command=self._show_help)
+        help_menu.add_command(label="Optional checks", command=self._show_optional_checks)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        self.root.config(menu=menubar)
 
     def _build_layout(self) -> None:
         frm = ttk.Frame(self.root, padding=12)
@@ -201,8 +211,9 @@ class DuplicateCleanerUI:
         quick_days = ttk.Frame(frm)
         quick_days.grid(row=1, column=2, sticky="w", pady=(6, 0))
         ttk.Label(quick_days, text="Quick:").grid(row=0, column=0, sticky="w", padx=(0, 4))
-        for idx, val in enumerate([0, 1, 2, 7, 30], start=1):
-            ttk.Button(quick_days, text=str(val), width=3, command=lambda v=val: self._set_days(v)).grid(
+        quick_presets = [("all", 0), ("week", 7), ("month", 30)]
+        for idx, (label, val) in enumerate(quick_presets, start=1):
+            ttk.Button(quick_days, text=label, width=6, command=lambda v=val: self._set_days(v)).grid(
                 row=0, column=idx, padx=(0, 2)
             )
 
@@ -233,9 +244,16 @@ class DuplicateCleanerUI:
             row=0, column=2, sticky="w"
         )
 
+        # Deletion behavior.
+        ttk.Checkbutton(
+            frm,
+            text="Skip keep-choice dialog when duplicates are in the same folder (auto keep newest)",
+            variable=self.skip_same_folder_prompt,
+        ).grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
+
         # Buttons.
         btn_frame = ttk.Frame(frm)
-        btn_frame.grid(row=3, column=0, columnspan=3, sticky="w", pady=(10, 6))
+        btn_frame.grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 6))
         self.scan_btn = ttk.Button(btn_frame, text="Scan", command=self._scan)
         self.scan_btn.grid(row=0, column=0, padx=(0, 6))
         self.delete_btn = ttk.Button(btn_frame, text="Delete duplicates", command=self._delete, state="disabled")
@@ -243,23 +261,8 @@ class DuplicateCleanerUI:
 
         # Output area.
         self.output = scrolledtext.ScrolledText(frm, width=90, height=20, state="disabled")
-        self.output.grid(row=4, column=0, columnspan=3, sticky="nsew", pady=(8, 6))
-        frm.rowconfigure(4, weight=1)
-
-        # Suggestions on other parameters.
-        suggestions = (
-            "Other checks to strengthen 'real duplicate' detection:\n"
-            "- SHA-256 hash of file contents (most reliable but slower).\n"
-            "- File creation/modification timestamps (if identical alongside size).\n"
-            "- File extension and MIME type consistency.\n"
-            "- Audio/image metadata (duration, resolution) for media files.\n"
-            "- Embedded checksums (e.g., ID3 tags, EXIF unique IDs) where applicable.\n"
-        )
-        suggestion_box = tk.Text(frm, height=6, wrap="word", state="disabled", background="#f8f8f8")
-        suggestion_box.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(4, 0))
-        suggestion_box.configure(state="normal")
-        suggestion_box.insert("1.0", suggestions)
-        suggestion_box.configure(state="disabled")
+        self.output.grid(row=5, column=0, columnspan=3, sticky="nsew", pady=(8, 6))
+        frm.rowconfigure(5, weight=1)
 
     def _browse_folder(self) -> None:
         folder = filedialog.askdirectory(initialdir=self.folder_var.get() or str(Path.cwd()))
@@ -374,9 +377,27 @@ class DuplicateCleanerUI:
             messagebox.showinfo("Nothing to delete", "No duplicates have been scanned yet.")
             return
 
-        keep_choices = self._prompt_keep_choices()
-        if keep_choices is None:
-            return
+        auto_keep: Dict[Tuple[Tuple[str, object], ...], Path] = {}
+        manual_groups: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]] = {}
+
+        if self.skip_same_folder_prompt.get():
+            for key, files in self.duplicates.items():
+                parents = {path.parent for path, _, _ in files}
+                if len(parents) == 1:
+                    # Auto-keep the newest file when everything lives in the same folder.
+                    newest = max(files, key=lambda item: item[2])[0]
+                    auto_keep[key] = newest
+                else:
+                    manual_groups[key] = files
+        else:
+            manual_groups = self.duplicates
+
+        keep_choices: Dict[Tuple[Tuple[str, object], ...], Path] = dict(auto_keep)
+        if manual_groups:
+            manual_choices = self._prompt_keep_choices(manual_groups)
+            if manual_choices is None:
+                return
+            keep_choices.update(manual_choices)
 
         # Decide which files to delete based on user choices.
         to_delete: List[Path] = []
@@ -405,7 +426,9 @@ class DuplicateCleanerUI:
         # Refresh view after deletion.
         self._scan()
 
-    def _prompt_keep_choices(self) -> Dict[Tuple[Tuple[str, object], ...], Path] | None:
+    def _prompt_keep_choices(
+        self, groups: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]]
+    ) -> Dict[Tuple[Tuple[str, object], ...], Path] | None:
         """Show a dialog to choose which file to keep per duplicate group."""
         top = tk.Toplevel(self.root)
         top.title("Choose files to keep")
@@ -416,7 +439,7 @@ class DuplicateCleanerUI:
         container.pack(fill="both", expand=True)
 
         keep_vars: List[Tuple[tk.IntVar, List[FileEntry], Tuple[Tuple[str, object], ...]]] = []
-        for group_idx, (key, files) in enumerate(sorted(self.duplicates.items())):
+        for group_idx, (key, files) in enumerate(sorted(groups.items())):
             lf = ttk.LabelFrame(container, text=_describe_key(key), padding=(8, 6))
             lf.pack(fill="both", expand=True, padx=4, pady=4)
             sorted_files = sorted(files, key=lambda item: item[2], reverse=True)
@@ -451,6 +474,45 @@ class DuplicateCleanerUI:
 
         top.wait_window()
         return result
+
+    def _show_help(self) -> None:
+        """Display a simple help dialog with usage tips and examples."""
+        help_text = (
+            "Delete Real Duplicates - Usage Guide\n\n"
+            "1) Pick a folder and how many days back to scan. Days=0 scans everything.\n"
+            "2) Choose duplicate checks. Hash+Size is safest; add Name/Modified time to tighten matches.\n"
+            "3) Optional: limit hashing to files under a size (helps avoid hashing very large files).\n"
+            "4) Scan. Review the groups listed in the output pane.\n"
+            "5) Delete duplicates. You choose which copy to keep per group unless the\n"
+            "   'Skip keep-choice dialog for same folder' toggle auto-selects the newest file.\n\n"
+            "What is content hash? It reads the entire file and computes a SHA-256 digest of its bytes.\n"
+            "Using Hash + Size keeps accuracy the same as Hash alone but hashes fewer files (size filters\n"
+            "out obvious non-matches first). Accuracy only drops if you enable the hash size cap, because\n"
+            "very large files above that limit are skipped.\n\n"
+            "Examples:\n"
+            "- Find identical photos in Downloads from the last week: set Days=7, enable Hash+Size.\n"
+            "- Clean duplicate installers regardless of timestamp: enable Hash+Size, set Days=0.\n"
+            "- Quick name+size pass (faster, slightly looser): disable Hash, enable Size+File name.\n\n"
+            "Notes:\n"
+            "- Deletions go to the Recycle Bin when possible (via send2trash). If unavailable, files are removed.\n"
+            "- Hashing large files can be slow; raise or disable the hash size limit if you need full coverage.\n"
+            "- Duplicate groups show the most recent file first to simplify deciding which to keep.\n"
+        )
+        messagebox.showinfo("How to use", help_text, parent=self.root)
+
+    def _show_optional_checks(self) -> None:
+        """Display optional deeper checks for advanced users."""
+        extra_text = (
+            "Optional checks for stricter duplicate detection:\n\n"
+            "- Content hash (SHA-256): best accuracy, slower on large files. Pair with Size to prefilter.\n"
+            "- Timestamps: match creation/modified times alongside size when hash is off.\n"
+            "- Names/extensions and MIME type: avoid treating different file types as duplicates.\n"
+            "- Media metadata: duration, resolution, bitrate, EXIF/ID3 unique IDs for photos/audio/video.\n"
+            "- Embedded checksums: some archives/media embed hashes; use them when available.\n\n"
+            "Tip: Start with Hash + Size for reliability. Add other signals only if you need extra certainty\n"
+            "or are skipping hashing for speed/size reasons."
+        )
+        messagebox.showinfo("Optional checks", extra_text, parent=self.root)
 
 
 def main() -> None:
