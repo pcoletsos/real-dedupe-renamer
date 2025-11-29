@@ -1,0 +1,11 @@
+{
+  "folder": "C:\\Users\\takja\\Downloads",
+  "days": 2,
+  "use_hash": true,
+  "use_size": true,
+  "use_name": false,
+  "use_mtime": false,
+  "hash_limit_enabled": true,
+  "hash_max_mb": 500,
+  "skip_same_folder_prompt": true
+}

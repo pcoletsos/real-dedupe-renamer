@@ -4,17 +4,20 @@ import datetime as _dt
 import hashlib
 import os
 import threading
+import csv
+import json
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
 try:
     import tkinter as tk
-    from tkinter import filedialog, messagebox, scrolledtext, ttk
+    from tkinter import filedialog, messagebox, ttk
 except ImportError as exc:  # pragma: no cover - tkinter is standard but allow clearer error.
     raise SystemExit("tkinter is required to run this tool.") from exc
 
 
 FileEntry = Tuple[Path, int, float]  # path, size, modified timestamp
+SETTINGS_PATH = Path.cwd() / ".duplicate_cleaner_settings.json"
 
 
 def default_downloads_folder() -> Path:
@@ -143,7 +146,7 @@ def find_duplicate_groups(
     return {k: v for k, v in groups.items() if len(v) > 1}, hash_skipped
 
 
-def delete_files(paths: Iterable[Path]) -> None:
+def delete_files(paths: Iterable[Path], parent: tk.Tk | None = None) -> None:
     """Delete files; prefer Recycle Bin/Trash if send2trash is available."""
     try:
         from send2trash import send2trash  # type: ignore
@@ -158,13 +161,17 @@ def delete_files(paths: Iterable[Path]) -> None:
                 path.unlink(missing_ok=True)
         except Exception as exc:
             # Show errors via messagebox to avoid silent failures.
-            messagebox.showerror("Delete failed", f"Could not delete {path}:\n{exc}")
+            messagebox.showerror("Delete failed", f"Could not delete {path}:\n{exc}", parent=parent)
 
 
 class DuplicateCleanerUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         root.title("Delete Real Duplicates")
+
+        self.style = ttk.Style(root)
+        self.style.configure("Primary.TButton", padding=(12, 8), font=("Segoe UI", 10, "bold"))
+        self.style.configure("Danger.TButton", padding=(12, 8), font=("Segoe UI", 10, "bold"))
 
         self.folder_var = tk.StringVar(value=str(default_downloads_folder()))
         self.days_var = tk.IntVar(value=2)
@@ -175,12 +182,22 @@ class DuplicateCleanerUI:
         self.hash_limit_enabled = tk.BooleanVar(value=True)
         self.hash_max_mb = tk.IntVar(value=500)
         self.skip_same_folder_prompt = tk.BooleanVar(value=False)
+        self.filter_var = tk.StringVar(value="")
         self._scanning = False
         self._last_hash_skipped = 0
+        self._last_folder: Path | None = None
+        self._last_days: int = 0
         self.duplicates: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]] = {}
+        self._item_meta: Dict[str, Dict[str, object]] = {}
+        self._sort_directions: Dict[str, bool] = {}
+        self._last_sort_column: str | None = None
+        self._last_sort_direction: bool = True  # True = ascending
+        self._spinner_job: str | None = None
 
         self._build_menu()
         self._build_layout()
+        self._load_settings()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_menu(self) -> None:
         menubar = tk.Menu(self.root)
@@ -254,16 +271,151 @@ class DuplicateCleanerUI:
         # Buttons.
         btn_frame = ttk.Frame(frm)
         btn_frame.grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 6))
-        self.scan_btn = ttk.Button(btn_frame, text="Scan", command=self._scan)
-        self.scan_btn.grid(row=0, column=0, padx=(0, 6))
-        self.delete_btn = ttk.Button(btn_frame, text="Delete duplicates", command=self._delete, state="disabled")
-        self.delete_btn.grid(row=0, column=1)
+        self.scan_btn = ttk.Button(btn_frame, text="Scan", command=self._scan, style="Primary.TButton", width=14)
+        self.scan_btn.grid(row=0, column=0, padx=(0, 10))
+        self.delete_btn = ttk.Button(
+            btn_frame, text="Delete duplicates", command=self._delete, state="disabled", style="Danger.TButton", width=18
+        )
+        self.delete_btn.grid(row=0, column=1, padx=(0, 4))
 
-        # Output area.
-        self.output = scrolledtext.ScrolledText(frm, width=90, height=20, state="disabled")
-        self.output.grid(row=5, column=0, columnspan=3, sticky="nsew", pady=(8, 6))
-        frm.rowconfigure(5, weight=1)
+        # Notices and summary.
+        self.notice_var = tk.StringVar(value="")
+        ttk.Label(frm, textvariable=self.notice_var, foreground="#b36200").grid(
+            row=5, column=0, columnspan=3, sticky="w", pady=(6, 0)
+        )
 
+        summary_frame = ttk.Frame(frm)
+        summary_frame.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(2, 2))
+        summary_frame.columnconfigure(0, weight=1)
+        self.summary_var = tk.StringVar(value="Scan results will appear here.")
+        ttk.Label(summary_frame, textvariable=self.summary_var).grid(row=0, column=0, sticky="w")
+        actions = ttk.Frame(summary_frame)
+        actions.grid(row=0, column=1, sticky="e")
+        self.copy_btn = ttk.Button(actions, text="Copy report", command=self._copy_report, state="disabled")
+        self.copy_btn.grid(row=0, column=0, padx=(0, 4))
+        self.export_btn = ttk.Button(actions, text="Export CSV", command=self._export_csv, state="disabled")
+        self.export_btn.grid(row=0, column=1, padx=(0, 4))
+        self.collapse_btn = ttk.Button(actions, text="Collapse all", command=self._collapse_all, state="disabled")
+        self.collapse_btn.grid(row=0, column=2, padx=(0, 4))
+        self.expand_btn = ttk.Button(actions, text="Expand all", command=self._expand_all, state="disabled")
+        self.expand_btn.grid(row=0, column=3)
+
+        # Filter.
+        filter_frame = ttk.Frame(frm)
+        filter_frame.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(0, 4))
+        ttk.Label(filter_frame, text="Filter (name or folder contains):").grid(row=0, column=0, sticky="w")
+        self.filter_entry = ttk.Entry(filter_frame, textvariable=self.filter_var, width=40, state="disabled")
+        self.filter_entry.grid(row=0, column=1, sticky="w", padx=(4, 0))
+        self.filter_var.trace_add("write", lambda *_: self._apply_filter())
+
+        tree_frame = ttk.Frame(frm)
+        tree_frame.grid(row=8, column=0, columnspan=3, sticky="nsew", pady=(0, 6))
+        frm.rowconfigure(8, weight=1)
+        tree_frame.rowconfigure(0, weight=1)
+        tree_frame.columnconfigure(0, weight=1)
+
+        columns = ("location", "modified", "size")
+        self.results_tree = ttk.Treeview(tree_frame, columns=columns, show="tree headings", selectmode="browse")
+        self.results_tree.heading("#0", text="File / Group", anchor="w")
+        self.results_tree.heading("location", text="Folder / Criteria", anchor="w")
+        self.results_tree.heading("modified", text="Modified", anchor="w")
+        self.results_tree.heading("size", text="Size", anchor="e")
+        self.results_tree.column("#0", width=280, anchor="w", stretch=True)
+        self.results_tree.column("location", width=320, anchor="w", stretch=True)
+        self.results_tree.column("modified", width=150, anchor="w", stretch=False)
+        self.results_tree.column("size", width=90, anchor="e", stretch=False)
+        self.results_tree.grid(row=0, column=0, sticky="nsew")
+        for col in ("#0",) + columns:
+            self.results_tree.heading(col, command=lambda c=col: self._sort_tree(c))
+
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.results_tree.yview)
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.results_tree.xview)
+        self.results_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
+        self.results_tree.bind("<Double-1>", self._on_tree_double_click)
+        self.results_tree.bind("<Button-3>", self._on_tree_right_click)
+
+    def _load_settings(self) -> None:
+        """Load saved settings from disk if present."""
+        try:
+            if SETTINGS_PATH.exists():
+                data = SETTINGS_PATH.read_text(encoding="utf-8")
+                opts = dict(json.loads(data))
+                self.folder_var.set(opts.get("folder", self.folder_var.get()))
+                self.days_var.set(int(opts.get("days", self.days_var.get())))
+                self.use_hash.set(bool(opts.get("use_hash", self.use_hash.get())))
+                self.use_size.set(bool(opts.get("use_size", self.use_size.get())))
+                self.use_name.set(bool(opts.get("use_name", self.use_name.get())))
+                self.use_mtime.set(bool(opts.get("use_mtime", self.use_mtime.get())))
+                self.hash_limit_enabled.set(bool(opts.get("hash_limit_enabled", self.hash_limit_enabled.get())))
+                self.hash_max_mb.set(int(opts.get("hash_max_mb", self.hash_max_mb.get())))
+                self.skip_same_folder_prompt.set(bool(opts.get("skip_same_folder_prompt", self.skip_same_folder_prompt.get())))
+        except Exception:
+            # Ignore corrupt settings; fall back to defaults.
+            pass
+
+    def _save_settings(self) -> None:
+        opts = {
+            "folder": self.folder_var.get(),
+            "days": int(self.days_var.get()),
+            "use_hash": bool(self.use_hash.get()),
+            "use_size": bool(self.use_size.get()),
+            "use_name": bool(self.use_name.get()),
+            "use_mtime": bool(self.use_mtime.get()),
+            "hash_limit_enabled": bool(self.hash_limit_enabled.get()),
+            "hash_max_mb": int(self.hash_max_mb.get()),
+            "skip_same_folder_prompt": bool(self.skip_same_folder_prompt.get()),
+        }
+        try:
+            SETTINGS_PATH.write_text(json.dumps(opts, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+    def _on_close(self) -> None:
+        self._save_settings()
+        self.root.destroy()
+
+    def _set_actions_enabled(self, enabled: bool) -> None:
+        state = "normal" if enabled else "disabled"
+        for btn in [self.copy_btn, self.export_btn, self.collapse_btn, self.expand_btn]:
+            btn.configure(state=state)
+
+    def _set_filter_enabled(self, enabled: bool) -> None:
+        self.filter_entry.configure(state="normal" if enabled else "disabled")
+
+    def _center_window(self, win: tk.Toplevel) -> None:
+        win.update_idletasks()
+        w = win.winfo_width()
+        h = win.winfo_height()
+        root_x = self.root.winfo_rootx()
+        root_y = self.root.winfo_rooty()
+        root_w = self.root.winfo_width()
+        root_h = self.root.winfo_height()
+        x = root_x + max((root_w - w) // 2, 0)
+        y = root_y + max((root_h - h) // 2, 0)
+        win.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _start_scan_spinner(self) -> None:
+        dots = [".", "..", "...", ""]
+        self._spinner_idx = 0
+
+        def tick() -> None:
+            self.scan_btn.configure(text=f"Scanning{dots[self._spinner_idx]}")
+            self._spinner_idx = (self._spinner_idx + 1) % len(dots)
+            self._spinner_job = self.root.after(200, tick)
+
+        tick()
+
+    def _stop_scan_spinner(self) -> None:
+        if self._spinner_job:
+            try:
+                self.root.after_cancel(self._spinner_job)
+            except Exception:
+                pass
+            self._spinner_job = None
+        self.scan_btn.configure(text="Scan")
+        self._spinner_idx = 0
     def _browse_folder(self) -> None:
         folder = filedialog.askdirectory(initialdir=self.folder_var.get() or str(Path.cwd()))
         if folder:
@@ -280,20 +432,21 @@ class DuplicateCleanerUI:
         days = max(self.days_var.get(), 0)
 
         if not folder.exists() or not folder.is_dir():
-            messagebox.showerror("Invalid folder", f"{folder} is not a valid directory.")
+            messagebox.showerror("Invalid folder", f"{folder} is not a valid directory.", parent=self.root)
             return
 
         if not any([self.use_hash.get(), self.use_size.get(), self.use_name.get(), self.use_mtime.get()]):
-            messagebox.showerror("No criteria selected", "Select at least one duplicate check.")
+            messagebox.showerror("No criteria selected", "Select at least one duplicate check.", parent=self.root)
             return
 
         self._scanning = True
         self.scan_btn.configure(state="disabled")
         self.delete_btn.configure(state="disabled")
-        self.output.configure(state="normal")
-        self.output.delete("1.0", tk.END)
-        self.output.insert(tk.END, "Scanning...\n")
-        self.output.configure(state="disabled")
+        for item in self.results_tree.get_children():
+            self.results_tree.delete(item)
+        self._item_meta.clear()
+        self.summary_var.set("Scanning...")
+        self.notice_var.set("")
 
         thread = threading.Thread(
             target=self._run_scan_thread,
@@ -301,6 +454,9 @@ class DuplicateCleanerUI:
             daemon=True,
         )
         thread.start()
+        self._start_scan_spinner()
+        self._set_actions_enabled(False)
+        self._set_filter_enabled(False)
 
     def _run_scan_thread(self, folder: Path, days: int) -> None:
         try:
@@ -317,7 +473,7 @@ class DuplicateCleanerUI:
                 hash_max_bytes=hash_limit,
             )
         except Exception as exc:  # pragma: no cover - UI/IO bound
-            self.root.after(0, lambda: messagebox.showerror("Scan failed", str(exc)))
+            self.root.after(0, lambda: messagebox.showerror("Scan failed", str(exc), parent=self.root))
             self.root.after(0, self._finish_scan)
             return
 
@@ -332,6 +488,8 @@ class DuplicateCleanerUI:
     ) -> None:
         self.duplicates = duplicates
         self._last_hash_skipped = hash_skipped
+        self._last_folder = folder
+        self._last_days = days
         self._render_results(folder, days)
         if self.duplicates:
             self.delete_btn.configure(state="normal")
@@ -340,41 +498,238 @@ class DuplicateCleanerUI:
     def _finish_scan(self) -> None:
         self._scanning = False
         self.scan_btn.configure(state="normal")
+        self._stop_scan_spinner()
 
     def _render_results(self, folder: Path, days: int) -> None:
-        self.output.configure(state="normal")
-        self.output.delete("1.0", tk.END)
+        for item in self.results_tree.get_children():
+            self.results_tree.delete(item)
+        self._item_meta.clear()
+
         if not self.duplicates:
-            self.output.insert(tk.END, f"No duplicates found in {folder} (last {days} day(s)).\n")
-            self.output.configure(state="disabled")
+            self.summary_var.set(f"No duplicates found in {folder} (last {days} day(s)).")
             self.delete_btn.configure(state="disabled")
+            self._set_actions_enabled(False)
+            self._set_filter_enabled(False)
             return
 
         total_dupes = sum(len(v) - 1 for v in self.duplicates.values())
-        self.output.insert(
-            tk.END,
-            f"Found {len(self.duplicates)} duplicate group(s) "
-            f"covering {total_dupes} deletable file(s) in {folder} (last {days} day(s)).\n\n",
+        summary = (
+            f"Found {len(self.duplicates)} duplicate group(s) covering {total_dupes} "
+            f"deletable file(s) in {folder} (last {days} day(s))."
         )
-
-        for key, files in sorted(self.duplicates.items()):
-            example_name = files[0][0].name
-            self.output.insert(tk.END, f"- {example_name}  [{_describe_key(key)}]\n")
-            for path, _, mtime in sorted(files, key=lambda item: item[2], reverse=True):
-                ts = _dt.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
-                self.output.insert(tk.END, f"    {path} (modified {ts})\n")
-            self.output.insert(tk.END, "\n")
-
         if self._last_hash_skipped:
-            self.output.insert(
-                tk.END,
-                f"Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit.\n",
+            summary += f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit."
+            self.notice_var.set("Hashing skipped for some large files due to the size cap.")
+        else:
+            self.notice_var.set("")
+        self.summary_var.set(summary)
+        self._set_actions_enabled(True)
+        self._set_filter_enabled(True)
+
+        filter_text = self.filter_var.get().casefold().strip()
+
+        def _filtered_items():
+            for key, files in sorted(self.duplicates.items()):
+                sorted_files_local = sorted(files, key=lambda item: item[2], reverse=True)
+                if not filter_text:
+                    yield key, sorted_files_local
+                else:
+                    if any(self._matches_filter(p, filter_text) for p, _, _ in sorted_files_local):
+                        yield key, sorted_files_local
+
+        for key, sorted_files in _filtered_items():
+            group_mtime = sorted_files[0][2]
+            group_size = sum(item[1] for item in sorted_files)
+            example_name = sorted_files[0][0].name
+            group_label = f"{example_name} ({len(sorted_files)} copies)"
+            group_id = self.results_tree.insert(
+                "",
+                "end",
+                text=group_label,
+                values=(_describe_key(key), "", ""),
+                open=True,
             )
-        self.output.configure(state="disabled")
+            self._item_meta[group_id] = {"kind": "group", "mtime": group_mtime, "size": group_size}
+            for path, size, mtime in sorted_files:
+                ts = _dt.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                item_id = self.results_tree.insert(
+                    group_id,
+                    "end",
+                    text=path.name,
+                    values=(str(path.parent), ts, human_size(size)),
+                )
+                self._item_meta[item_id] = {"kind": "file", "mtime": mtime, "size": size, "path": path}
+
+        # Reapply last sort to keep table stable across scans/filters.
+        if self._last_sort_column is not None:
+            self._sort_tree(self._last_sort_column, direction=self._last_sort_direction, remember=False, toggle=False)
+
+    def _matches_filter(self, path: Path, needle: str) -> bool:
+        text = needle.casefold()
+        return text in path.name.casefold() or text in str(path.parent).casefold()
+
+    def _apply_filter(self) -> None:
+        if not self.duplicates or self._last_folder is None:
+            return
+        self._render_results(self._last_folder, self._last_days)
+
+    def _sort_tree(self, column: str, *, direction: bool | None = None, remember: bool = True, toggle: bool = True) -> None:
+        """Sort top-level groups and their children by the selected column."""
+        if direction is None:
+            direction = self._sort_directions.get(column, True)
+        next_direction = (not direction) if toggle else direction
+
+        def sort_children(parent: str) -> None:
+            children = list(self.results_tree.get_children(parent))
+            data = [(self._sort_key(item, column), item) for item in children]
+            for idx, (_, item) in enumerate(sorted(data, key=lambda pair: pair[0], reverse=not direction)):
+                self.results_tree.move(item, parent, idx)
+
+        sort_children("")
+        for group in self.results_tree.get_children(""):
+            sort_children(group)
+        self._sort_directions[column] = next_direction
+        if remember:
+            self._last_sort_column = column
+            self._last_sort_direction = direction
+
+    def _sort_key(self, item: str, column: str):
+        meta = self._item_meta.get(item, {})
+        if column == "#0":
+            return self.results_tree.item(item, "text").casefold()
+        values = self.results_tree.item(item, "values")
+        if column == "location":
+            return values[0].casefold() if values else ""
+        if column == "modified":
+            return meta.get("mtime", 0)
+        if column == "size":
+            return meta.get("size", 0)
+        return 0
+
+    def _on_tree_right_click(self, event: tk.Event) -> None:
+        item = self.results_tree.identify_row(event.y)
+        if not item:
+            return
+        self.results_tree.selection_set(item)
+        menu = tk.Menu(self.root, tearoff=False)
+        menu.add_command(label="Copy row", command=lambda: self._copy_tree_item(item))
+        meta = self._item_meta.get(item, {})
+        if meta.get("kind") == "file":
+            parent = self.results_tree.parent(item)
+            if parent:
+                menu.add_command(label="Copy group", command=lambda: self._copy_group(parent))
+        elif meta.get("kind") == "group":
+            menu.add_command(label="Copy group", command=lambda: self._copy_group(item))
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _copy_tree_item(self, item: str) -> None:
+        meta = self._item_meta.get(item, {})
+        values = self.results_tree.item(item, "values")
+        if meta.get("kind") == "group":
+            text = f"{self.results_tree.item(item, 'text')} | {values[0] if values else ''}"
+        else:
+            text = f"{self.results_tree.item(item, 'text')} | {' | '.join(values)}"
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+
+    def _copy_group(self, item: str) -> None:
+        lines: List[str] = []
+        lines.append(f"{self.results_tree.item(item, 'text')}")
+        for child in self.results_tree.get_children(item):
+            vals = self.results_tree.item(child, "values")
+            lines.append(f"  {self.results_tree.item(child, 'text')} | {' | '.join(vals)}")
+        self.root.clipboard_clear()
+        self.root.clipboard_append("\n".join(lines))
+
+    def _expand_all(self) -> None:
+        for item in self.results_tree.get_children(""):
+            self.results_tree.item(item, open=True)
+
+    def _collapse_all(self) -> None:
+        for item in self.results_tree.get_children(""):
+            self.results_tree.item(item, open=False)
+
+    def _on_tree_double_click(self, event: tk.Event) -> None:
+        item = self.results_tree.identify_row(event.y)
+        if not item:
+            return
+        meta = self._item_meta.get(item, {})
+        if meta.get("kind") == "file":
+            path = meta.get("path")
+            if isinstance(path, Path) and path.exists():
+                try:
+                    os.startfile(str(path.parent))
+                except Exception:
+                    messagebox.showerror("Open folder failed", f"Could not open {path.parent}", parent=self.root)
+
+    def _generate_report_rows(self) -> List[List[str]]:
+        rows: List[List[str]] = []
+        for key, files in sorted(self.duplicates.items()):
+            sorted_files = sorted(files, key=lambda item: item[2], reverse=True)
+            for path, size, mtime in sorted_files:
+                ts = _dt.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                rows.append(
+                    [
+                        path.name,
+                        str(path.parent),
+                        ts,
+                        str(size),
+                        human_size(size),
+                        _describe_key(key),
+                    ]
+                )
+        return rows
+
+    def _build_report_text(self) -> str:
+        rows = self._generate_report_rows()
+        if not rows:
+            return "No duplicates found."
+        lines = [
+            f"Found {len(self.duplicates)} duplicate group(s), {_dt.datetime.now().isoformat(timespec='seconds')}",
+            "",
+        ]
+        for key, files in sorted(self.duplicates.items()):
+            lines.append(f"{files[0][0].name}  [{_describe_key(key)}]")
+            for path, size, mtime in sorted(files, key=lambda item: item[2], reverse=True):
+                ts = _dt.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                lines.append(f"  {path}  ({human_size(size)}, modified {ts})")
+            lines.append("")
+        return "\n".join(lines)
+
+    def _copy_report(self) -> None:
+        text = self._build_report_text()
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        messagebox.showinfo("Copied", "Scan report copied to clipboard.", parent=self.root)
+
+    def _export_csv(self) -> None:
+        if not self.duplicates:
+            messagebox.showinfo("No data", "Run a scan first to export results.", parent=self.root)
+            return
+        path_str = filedialog.asksaveasfilename(
+            parent=self.root,
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Save duplicate report as CSV",
+        )
+        if not path_str:
+            return
+        rows = self._generate_report_rows()
+        try:
+            with open(path_str, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["file", "folder", "modified", "size_bytes", "size_human", "criteria"])
+                writer.writerows(rows)
+            messagebox.showinfo("Exported", f"Report saved to {path_str}", parent=self.root)
+        except Exception as exc:
+            messagebox.showerror("Export failed", f"Could not save CSV:\n{exc}", parent=self.root)
 
     def _delete(self) -> None:
         if not self.duplicates:
-            messagebox.showinfo("Nothing to delete", "No duplicates have been scanned yet.")
+            messagebox.showinfo("Nothing to delete", "No duplicates have been scanned yet.", parent=self.root)
             return
 
         auto_keep: Dict[Tuple[Tuple[str, object], ...], Path] = {}
@@ -409,7 +764,7 @@ class DuplicateCleanerUI:
 
         total_size = sum(path.stat().st_size for path in to_delete if path.exists())
         if not to_delete:
-            messagebox.showinfo("Nothing to delete", "No duplicate files are marked for deletion.")
+            messagebox.showinfo("Nothing to delete", "No duplicate files are marked for deletion.", parent=self.root)
             return
 
         confirm = messagebox.askyesno(
@@ -417,12 +772,13 @@ class DuplicateCleanerUI:
             f"This will delete {len(to_delete)} file(s), freeing ~{human_size(total_size)}.\n"
             f"The most recent copy in each group will be kept.\n\n"
             "Proceed?",
+            parent=self.root,
         )
         if not confirm:
             return
 
-        delete_files(to_delete)
-        messagebox.showinfo("Done", f"Deleted {len(to_delete)} duplicate file(s).")
+        delete_files(to_delete, parent=self.root)
+        messagebox.showinfo("Done", f"Deleted {len(to_delete)} duplicate file(s).", parent=self.root)
         # Refresh view after deletion.
         self._scan()
 
@@ -469,9 +825,15 @@ class DuplicateCleanerUI:
         def on_cancel() -> None:
             top.destroy()
 
+        def keep_newest_all() -> None:
+            for var, _, _ in keep_vars:
+                var.set(0)
+
         ttk.Button(btns, text="Cancel", command=on_cancel).pack(side="right", padx=(4, 0))
         ttk.Button(btns, text="OK", command=on_ok).pack(side="right")
+        ttk.Button(btns, text="Keep newest in all groups", command=keep_newest_all).pack(side="left")
 
+        self._center_window(top)
         top.wait_window()
         return result
 
