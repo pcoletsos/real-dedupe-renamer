@@ -146,7 +146,7 @@ def find_duplicate_groups(
     return {k: v for k, v in groups.items() if len(v) > 1}, hash_skipped
 
 
-def delete_files(paths: Iterable[Path], parent: tk.Tk | None = None) -> None:
+def delete_files(paths: Iterable[Path], *, on_error=None) -> None:
     """Delete files; prefer Recycle Bin/Trash if send2trash is available."""
     try:
         from send2trash import send2trash  # type: ignore
@@ -160,8 +160,8 @@ def delete_files(paths: Iterable[Path], parent: tk.Tk | None = None) -> None:
             else:
                 path.unlink(missing_ok=True)
         except Exception as exc:
-            # Show errors via messagebox to avoid silent failures.
-            messagebox.showerror("Delete failed", f"Could not delete {path}:\n{exc}", parent=parent)
+            if on_error:
+                on_error("Delete failed", f"Could not delete {path}:\n{exc}")
 
 
 class DuplicateCleanerUI:
@@ -376,26 +376,6 @@ class DuplicateCleanerUI:
         self._save_settings()
         self.root.destroy()
 
-    def _set_actions_enabled(self, enabled: bool) -> None:
-        state = "normal" if enabled else "disabled"
-        for btn in [self.copy_btn, self.export_btn, self.collapse_btn, self.expand_btn]:
-            btn.configure(state=state)
-
-    def _set_filter_enabled(self, enabled: bool) -> None:
-        self.filter_entry.configure(state="normal" if enabled else "disabled")
-
-    def _center_window(self, win: tk.Toplevel) -> None:
-        win.update_idletasks()
-        w = win.winfo_width()
-        h = win.winfo_height()
-        root_x = self.root.winfo_rootx()
-        root_y = self.root.winfo_rooty()
-        root_w = self.root.winfo_width()
-        root_h = self.root.winfo_height()
-        x = root_x + max((root_w - w) // 2, 0)
-        y = root_y + max((root_h - h) // 2, 0)
-        win.geometry(f"{w}x{h}+{x}+{y}")
-
     def _start_scan_spinner(self) -> None:
         dots = [".", "..", "...", ""]
         self._spinner_idx = 0
@@ -432,11 +412,11 @@ class DuplicateCleanerUI:
         days = max(self.days_var.get(), 0)
 
         if not folder.exists() or not folder.is_dir():
-            messagebox.showerror("Invalid folder", f"{folder} is not a valid directory.", parent=self.root)
+            self._error("Invalid folder", f"{folder} is not a valid directory.")
             return
 
         if not any([self.use_hash.get(), self.use_size.get(), self.use_name.get(), self.use_mtime.get()]):
-            messagebox.showerror("No criteria selected", "Select at least one duplicate check.", parent=self.root)
+            self._error("No criteria selected", "Select at least one duplicate check.")
             return
 
         self._scanning = True
@@ -473,7 +453,7 @@ class DuplicateCleanerUI:
                 hash_max_bytes=hash_limit,
             )
         except Exception as exc:  # pragma: no cover - UI/IO bound
-            self.root.after(0, lambda: messagebox.showerror("Scan failed", str(exc), parent=self.root))
+            self.root.after(0, lambda: self._error("Scan failed", str(exc)))
             self.root.after(0, self._finish_scan)
             return
 
@@ -644,6 +624,63 @@ class DuplicateCleanerUI:
         self.root.clipboard_clear()
         self.root.clipboard_append("\n".join(lines))
 
+    def _set_actions_enabled(self, enabled: bool) -> None:
+        state = "normal" if enabled else "disabled"
+        for btn in [self.copy_btn, self.export_btn, self.collapse_btn, self.expand_btn]:
+            btn.configure(state=state)
+
+    def _set_filter_enabled(self, enabled: bool) -> None:
+        self.filter_entry.configure(state="normal" if enabled else "disabled")
+
+    def _center_window(self, win: tk.Toplevel) -> None:
+        win.update_idletasks()
+        w = win.winfo_width()
+        h = win.winfo_height()
+        root_x = self.root.winfo_rootx()
+        root_y = self.root.winfo_rooty()
+        root_w = self.root.winfo_width()
+        root_h = self.root.winfo_height()
+        x = root_x + max((root_w - w) // 2, 0)
+        y = root_y + max((root_h - h) // 2, 0)
+        win.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _modal_dialog(self, title: str, message: str, buttons: List[Tuple[str, object]]) -> object:
+        top = tk.Toplevel(self.root)
+        top.title(title)
+        top.transient(self.root)
+        top.grab_set()
+
+        body = ttk.Frame(top, padding=12)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text=message, wraplength=520, justify="left").pack(fill="x", pady=(0, 10))
+
+        btns = ttk.Frame(body)
+        btns.pack(fill="x")
+        result: object = None
+
+        def on_choose(val: object) -> None:
+            nonlocal result
+            result = val
+            top.destroy()
+
+        for idx, (label, val) in enumerate(buttons):
+            ttk.Button(btns, text=label, command=lambda v=val: on_choose(v)).pack(
+                side="right", padx=(6 if idx else 0, 0)
+            )
+
+        self._center_window(top)
+        top.wait_window()
+        return result
+
+    def _info(self, title: str, message: str) -> None:
+        self._modal_dialog(title, message, [("OK", True)])
+
+    def _error(self, title: str, message: str) -> None:
+        self._modal_dialog(title, message, [("OK", False)])
+
+    def _confirm(self, title: str, message: str) -> bool:
+        return bool(self._modal_dialog(title, message, [("Cancel", False), ("Yes, delete", True)]))
+
     def _expand_all(self) -> None:
         for item in self.results_tree.get_children(""):
             self.results_tree.item(item, open=True)
@@ -663,7 +700,7 @@ class DuplicateCleanerUI:
                 try:
                     os.startfile(str(path.parent))
                 except Exception:
-                    messagebox.showerror("Open folder failed", f"Could not open {path.parent}", parent=self.root)
+                    self._error("Open folder failed", f"Could not open {path.parent}")
 
     def _generate_report_rows(self) -> List[List[str]]:
         rows: List[List[str]] = []
@@ -703,11 +740,11 @@ class DuplicateCleanerUI:
         text = self._build_report_text()
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
-        messagebox.showinfo("Copied", "Scan report copied to clipboard.", parent=self.root)
+        self._info("Copied", "Scan report copied to clipboard.")
 
     def _export_csv(self) -> None:
         if not self.duplicates:
-            messagebox.showinfo("No data", "Run a scan first to export results.", parent=self.root)
+            self._info("No data", "Run a scan first to export results.")
             return
         path_str = filedialog.asksaveasfilename(
             parent=self.root,
@@ -723,13 +760,13 @@ class DuplicateCleanerUI:
                 writer = csv.writer(f)
                 writer.writerow(["file", "folder", "modified", "size_bytes", "size_human", "criteria"])
                 writer.writerows(rows)
-            messagebox.showinfo("Exported", f"Report saved to {path_str}", parent=self.root)
+            self._info("Exported", f"Report saved to {path_str}")
         except Exception as exc:
-            messagebox.showerror("Export failed", f"Could not save CSV:\n{exc}", parent=self.root)
+            self._error("Export failed", f"Could not save CSV:\n{exc}")
 
     def _delete(self) -> None:
         if not self.duplicates:
-            messagebox.showinfo("Nothing to delete", "No duplicates have been scanned yet.", parent=self.root)
+            self._info("Nothing to delete", "No duplicates have been scanned yet.")
             return
 
         auto_keep: Dict[Tuple[Tuple[str, object], ...], Path] = {}
@@ -764,21 +801,20 @@ class DuplicateCleanerUI:
 
         total_size = sum(path.stat().st_size for path in to_delete if path.exists())
         if not to_delete:
-            messagebox.showinfo("Nothing to delete", "No duplicate files are marked for deletion.", parent=self.root)
+            self._info("Nothing to delete", "No duplicate files are marked for deletion.")
             return
 
-        confirm = messagebox.askyesno(
+        confirm = self._confirm(
             "Confirm deletion",
             f"This will delete {len(to_delete)} file(s), freeing ~{human_size(total_size)}.\n"
             f"The most recent copy in each group will be kept.\n\n"
             "Proceed?",
-            parent=self.root,
         )
         if not confirm:
             return
 
-        delete_files(to_delete, parent=self.root)
-        messagebox.showinfo("Done", f"Deleted {len(to_delete)} duplicate file(s).", parent=self.root)
+        delete_files(to_delete, on_error=self._error)
+        self._info("Done", f"Deleted {len(to_delete)} duplicate file(s).")
         # Refresh view after deletion.
         self._scan()
 
@@ -860,7 +896,7 @@ class DuplicateCleanerUI:
             "- Hashing large files can be slow; raise or disable the hash size limit if you need full coverage.\n"
             "- Duplicate groups show the most recent file first to simplify deciding which to keep.\n"
         )
-        messagebox.showinfo("How to use", help_text, parent=self.root)
+        self._info("How to use", help_text)
 
     def _show_optional_checks(self) -> None:
         """Display optional deeper checks for advanced users."""
@@ -874,7 +910,7 @@ class DuplicateCleanerUI:
             "Tip: Start with Hash + Size for reliability. Add other signals only if you need extra certainty\n"
             "or are skipping hashing for speed/size reasons."
         )
-        messagebox.showinfo("Optional checks", extra_text, parent=self.root)
+        self._info("Optional checks", extra_text)
 
 
 def main() -> None:
