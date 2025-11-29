@@ -7,5 +7,6 @@
   "use_mtime": false,
   "hash_limit_enabled": true,
   "hash_max_mb": 500,
-  "skip_same_folder_prompt": true
+  "skip_same_folder_prompt": true,
+  "rename_kept_enabled": true
 }
