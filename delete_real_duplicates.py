@@ -51,8 +51,8 @@ def gather_recent_files(
     name_prefix: str | None = None,
     include_subfolders: bool = True,
 ) -> Iterable[FileEntry]:
-    """Yield files in folder modified within the last `days_back` days, with optional prefix and recursion control."""
-    cutoff = _dt.datetime.now().timestamp() - days_back * 24 * 3600
+    """Yield files in folder modified within the last `days_back` days (0 = all), with optional prefix and recursion control."""
+    cutoff = None if days_back <= 0 else _dt.datetime.now().timestamp() - days_back * 24 * 3600
     prefix = name_prefix.casefold() if name_prefix else None
     iterator = folder.rglob("*") if include_subfolders else folder.glob("*")
     for path in iterator:
@@ -61,7 +61,7 @@ def gather_recent_files(
         if prefix and not path.name.casefold().startswith(prefix):
             continue
         stat = path.stat()
-        if stat.st_mtime >= cutoff:
+        if cutoff is None or stat.st_mtime >= cutoff:
             yield (path, stat.st_size, stat.st_mtime)
 
 
@@ -242,8 +242,13 @@ class DuplicateCleanerUI:
         self.folder_combo = ttk.Combobox(frm, textvariable=self.folder_var, width=60, values=self.folder_history)
         self.folder_combo.grid(row=0, column=1, sticky="ew", padx=(4, 4))
         self.folder_combo.bind("<Button-1>", self._open_folder_dropdown)
+        self.folder_combo.bind("<Down>", self._open_folder_dropdown)
+        self.folder_combo.bind("<<ComboboxSelected>>", self._on_folder_selected)
+        self.folder_combo.bind("<Escape>", self._close_folder_dropdown)
         browse_btn = ttk.Button(frm, text="Browse...", command=self._browse_folder)
         browse_btn.grid(row=0, column=2, sticky="e")
+        clear_btn = ttk.Button(frm, text="Clear history", command=self._clear_folder_history, width=12)
+        clear_btn.grid(row=0, column=3, sticky="e")
         frm.columnconfigure(1, weight=1)
 
         # Days back.
@@ -484,6 +489,22 @@ class DuplicateCleanerUI:
 
         self.folder_combo.after_idle(_post)
 
+    def _on_folder_selected(self, *_args) -> None:
+        """Close dropdown and keep focus usable after a selection."""
+        self._close_folder_dropdown()
+
+    def _close_folder_dropdown(self, *_args) -> None:
+        """Close the dropdown when a choice is made or focus leaves."""
+        try:
+            self.folder_combo.tk.call("ttk::combobox::Unpost", str(self.folder_combo))
+        except Exception:
+            self.folder_combo.event_generate("<Escape>")
+
+    def _clear_folder_history(self) -> None:
+        """Clear saved folder suggestions."""
+        self.folder_history = []
+        self.folder_combo.configure(values=[])
+
     def _rename_conflicting_kept_files(self, kept: List[Path], deleting: List[Path]) -> List[Tuple[Path, Path]]:
         """
         Auto-rename kept files using the configured pattern. Always resolves same-name conflicts;
@@ -529,6 +550,7 @@ class DuplicateCleanerUI:
         folder = filedialog.askdirectory(initialdir=self.folder_var.get() or str(Path.cwd()))
         if folder:
             self.folder_var.set(folder)
+            self._remember_folder(Path(folder))
 
     def _set_days(self, days: int) -> None:
         self.days_var.set(max(0, min(days, 365)))
@@ -613,6 +635,7 @@ class DuplicateCleanerUI:
         self._last_folder = folder
         self._last_days = days
         self._remember_folder(folder)
+        self._close_folder_dropdown()
         self._render_results(folder, days)
         if self.duplicates:
             self.delete_btn.configure(state="normal")
@@ -638,7 +661,7 @@ class DuplicateCleanerUI:
         total_dupes = sum(len(v) - 1 for v in self.duplicates.values())
         summary = (
             f"Found {len(self.duplicates)} duplicate group(s) covering {total_dupes} "
-            f"deletable file(s) in {folder} (last {days} day(s))."
+            f"deletable file(s) in {folder} ({'all time' if days <= 0 else f'last {days} day(s)'})."
         )
         prefix_text = self.prefix_var.get().strip()
         if prefix_text:

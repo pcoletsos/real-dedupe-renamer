@@ -1,6 +1,6 @@
 {
-  "folder": "R:/AI generated/Grok/Delete",
-  "days": 0,
+  "folder": "C:\\Users\\takja\\Downloads",
+  "days": 7,
   "use_hash": true,
   "use_size": true,
   "use_name": false,
@@ -9,10 +9,11 @@
   "hash_max_mb": 500,
   "skip_same_folder_prompt": true,
   "rename_kept_enabled": true,
-  "name_prefix": "",
+  "name_prefix": "grok",
   "include_subfolders": true,
   "recent_folders": [
+    "C:\\Users\\takja\\Downloads",
     "R:\\AI generated\\Grok\\Delete",
-    "C:\\Users\\takja\\Downloads"
+    "R:\\AI generated\\Grok\\Delete\\Godess"
   ]
 }
