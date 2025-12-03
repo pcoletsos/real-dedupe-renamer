@@ -44,11 +44,21 @@ def human_size(num_bytes: int) -> str:
     return f"{num_bytes} B"
 
 
-def gather_recent_files(folder: Path, days_back: int) -> Iterable[FileEntry]:
-    """Yield files in folder (recursively) modified within the last `days_back` days."""
+def gather_recent_files(
+    folder: Path,
+    days_back: int,
+    *,
+    name_prefix: str | None = None,
+    include_subfolders: bool = True,
+) -> Iterable[FileEntry]:
+    """Yield files in folder modified within the last `days_back` days, with optional prefix and recursion control."""
     cutoff = _dt.datetime.now().timestamp() - days_back * 24 * 3600
-    for path in folder.rglob("*"):
+    prefix = name_prefix.casefold() if name_prefix else None
+    iterator = folder.rglob("*") if include_subfolders else folder.glob("*")
+    for path in iterator:
         if not path.is_file():
+            continue
+        if prefix and not path.name.casefold().startswith(prefix):
             continue
         stat = path.stat()
         if stat.st_mtime >= cutoff:
@@ -192,7 +202,10 @@ class DuplicateCleanerUI:
         self.hash_max_mb = tk.IntVar(value=500)
         self.skip_same_folder_prompt = tk.BooleanVar(value=False)
         self.rename_kept_enabled = tk.BooleanVar(value=False)
+        self.include_subfolders = tk.BooleanVar(value=True)
+        self.prefix_var = tk.StringVar(value="")
         self.filter_var = tk.StringVar(value="")
+        self.folder_history: List[str] = []
         self._scanning = False
         self._last_hash_skipped = 0
         self._last_folder: Path | None = None
@@ -226,8 +239,9 @@ class DuplicateCleanerUI:
 
         # Folder chooser.
         ttk.Label(frm, text="Folder to scan:").grid(row=0, column=0, sticky="w")
-        entry = ttk.Entry(frm, textvariable=self.folder_var, width=60)
-        entry.grid(row=0, column=1, sticky="ew", padx=(4, 4))
+        self.folder_combo = ttk.Combobox(frm, textvariable=self.folder_var, width=60, values=self.folder_history)
+        self.folder_combo.grid(row=0, column=1, sticky="ew", padx=(4, 4))
+        self.folder_combo.bind("<Button-1>", self._open_folder_dropdown)
         browse_btn = ttk.Button(frm, text="Browse...", command=self._browse_folder)
         browse_btn.grid(row=0, column=2, sticky="e")
         frm.columnconfigure(1, weight=1)
@@ -245,9 +259,23 @@ class DuplicateCleanerUI:
                 row=0, column=idx, padx=(0, 2)
             )
 
+        # Subfolder toggle.
+        ttk.Checkbutton(frm, text="Include subfolders", variable=self.include_subfolders).grid(
+            row=2, column=0, columnspan=3, sticky="w", pady=(6, 0)
+        )
+
+        # Optional name prefix filter.
+        ttk.Label(frm, text="Only scan file names starting with (optional):").grid(
+            row=3, column=0, sticky="w", pady=(6, 0)
+        )
+        ttk.Entry(frm, textvariable=self.prefix_var, width=40).grid(
+            row=3, column=1, sticky="w", padx=(4, 0), pady=(6, 0)
+        )
+        ttk.Label(frm, text="Leave blank to scan all files.").grid(row=3, column=2, sticky="w", pady=(6, 0))
+
         # Duplicate criteria toggles.
         criteria = ttk.LabelFrame(frm, text="Duplicate checks", padding=(8, 6))
-        criteria.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10, 4))
+        criteria.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 4))
         ttk.Checkbutton(criteria, text="Content hash (SHA-256)", variable=self.use_hash).grid(
             row=0, column=0, sticky="w", padx=(0, 10)
         )
@@ -277,16 +305,16 @@ class DuplicateCleanerUI:
             frm,
             text="Skip keep-choice dialog when duplicates are in the same folder (auto keep newest)",
             variable=self.skip_same_folder_prompt,
-        ).grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        ).grid(row=5, column=0, columnspan=3, sticky="w", pady=(6, 0))
         ttk.Checkbutton(
             frm,
             text="Rename kept files after delete (pattern: name_YYYY-MM-DD_HH-MM-SS_###.ext)",
             variable=self.rename_kept_enabled,
-        ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(2, 6))
+        ).grid(row=6, column=0, columnspan=3, sticky="w", pady=(2, 6))
 
         # Buttons.
         btn_frame = ttk.Frame(frm)
-        btn_frame.grid(row=5, column=0, columnspan=3, sticky="w", pady=(6, 4))
+        btn_frame.grid(row=7, column=0, columnspan=3, sticky="w", pady=(6, 4))
         self.scan_btn = ttk.Button(btn_frame, text="Scan", command=self._scan, style="Primary.TButton", width=14)
         self.scan_btn.grid(row=0, column=0, padx=(0, 10))
         self.delete_btn = ttk.Button(
@@ -297,11 +325,11 @@ class DuplicateCleanerUI:
         # Notices and summary.
         self.notice_var = tk.StringVar(value="")
         ttk.Label(frm, textvariable=self.notice_var, foreground="#b36200").grid(
-            row=6, column=0, columnspan=3, sticky="w", pady=(4, 0)
+            row=8, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
 
         summary_frame = ttk.Frame(frm)
-        summary_frame.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(2, 2))
+        summary_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(2, 2))
         summary_frame.columnconfigure(0, weight=1)
         self.summary_var = tk.StringVar(value="Scan results will appear here.")
         ttk.Label(summary_frame, textvariable=self.summary_var, wraplength=900, justify="left").grid(
@@ -320,15 +348,15 @@ class DuplicateCleanerUI:
 
         # Filter.
         filter_frame = ttk.Frame(frm)
-        filter_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(0, 4))
+        filter_frame.grid(row=10, column=0, columnspan=3, sticky="ew", pady=(0, 4))
         ttk.Label(filter_frame, text="Filter (name or folder contains):").grid(row=0, column=0, sticky="w")
         self.filter_entry = ttk.Entry(filter_frame, textvariable=self.filter_var, width=40, state="disabled")
         self.filter_entry.grid(row=0, column=1, sticky="w", padx=(4, 0))
         self.filter_var.trace_add("write", lambda *_: self._apply_filter())
 
         tree_frame = ttk.Frame(frm)
-        tree_frame.grid(row=9, column=0, columnspan=3, sticky="nsew", pady=(0, 6))
-        frm.rowconfigure(9, weight=1)
+        tree_frame.grid(row=11, column=0, columnspan=3, sticky="nsew", pady=(0, 6))
+        frm.rowconfigure(11, weight=1)
         tree_frame.rowconfigure(0, weight=1)
         tree_frame.columnconfigure(0, weight=1)
 
@@ -372,6 +400,18 @@ class DuplicateCleanerUI:
                 self.hash_max_mb.set(int(opts.get("hash_max_mb", self.hash_max_mb.get())))
                 self.skip_same_folder_prompt.set(bool(opts.get("skip_same_folder_prompt", self.skip_same_folder_prompt.get())))
                 self.rename_kept_enabled.set(bool(opts.get("rename_kept_enabled", self.rename_kept_enabled.get())))
+                self.include_subfolders.set(bool(opts.get("include_subfolders", self.include_subfolders.get())))
+                self.prefix_var.set(str(opts.get("name_prefix", self.prefix_var.get()) or "").strip())
+                recents = opts.get("recent_folders", [])
+                if isinstance(recents, list):
+                    seen: set[str] = set()
+                    self.folder_history = []
+                    for item in recents:
+                        p = str(item).strip()
+                        if p and p.casefold() not in seen:
+                            seen.add(p.casefold())
+                            self.folder_history.append(p)
+                    self.folder_combo.configure(values=self.folder_history)
         except Exception:
             # Ignore corrupt settings; fall back to defaults.
             pass
@@ -388,6 +428,9 @@ class DuplicateCleanerUI:
             "hash_max_mb": int(self.hash_max_mb.get()),
             "skip_same_folder_prompt": bool(self.skip_same_folder_prompt.get()),
             "rename_kept_enabled": bool(self.rename_kept_enabled.get()),
+            "name_prefix": self.prefix_var.get().strip(),
+            "include_subfolders": bool(self.include_subfolders.get()),
+            "recent_folders": list(self.folder_history),
         }
         try:
             SETTINGS_PATH.write_text(json.dumps(opts, indent=2), encoding="utf-8")
@@ -418,6 +461,28 @@ class DuplicateCleanerUI:
             self._spinner_job = None
         self.scan_btn.configure(text="Scan")
         self._spinner_idx = 0
+
+    def _remember_folder(self, folder: Path) -> None:
+        """Track recently used folders for quick selection."""
+        folder_str = str(folder)
+        self.folder_history = [p for p in self.folder_history if p and p.casefold() != folder_str.casefold()]
+        self.folder_history.insert(0, folder_str)
+        self.folder_history = self.folder_history[:20]
+        self.folder_combo.configure(values=self.folder_history)
+
+    def _open_folder_dropdown(self, *_args) -> None:
+        """Show recent folders dropdown when the box is clicked."""
+        if not self.folder_history:
+            return
+        self.folder_combo.configure(values=self.folder_history)
+        # Post after idle so Tk can process the click first; fallback to key if Post is unavailable.
+        def _post() -> None:
+            try:
+                self.folder_combo.tk.call("ttk::combobox::Post", str(self.folder_combo))
+            except Exception:
+                self.folder_combo.event_generate("<Down>")
+
+        self.folder_combo.after_idle(_post)
 
     def _rename_conflicting_kept_files(self, kept: List[Path], deleting: List[Path]) -> List[Tuple[Path, Path]]:
         """
@@ -506,7 +571,15 @@ class DuplicateCleanerUI:
     def _run_scan_thread(self, folder: Path, days: int) -> None:
         try:
             start = _dt.datetime.now()
-            entries = list(gather_recent_files(folder, days))
+            prefix = self.prefix_var.get().strip()
+            entries = list(
+                gather_recent_files(
+                    folder,
+                    days,
+                    name_prefix=prefix or None,
+                    include_subfolders=self.include_subfolders.get(),
+                )
+            )
             hash_limit = (
                 self.hash_max_mb.get() * 1024 * 1024 if self.use_hash.get() and self.hash_limit_enabled.get() else None
             )
@@ -539,6 +612,7 @@ class DuplicateCleanerUI:
         self._last_scan_seconds = elapsed_seconds
         self._last_folder = folder
         self._last_days = days
+        self._remember_folder(folder)
         self._render_results(folder, days)
         if self.duplicates:
             self.delete_btn.configure(state="normal")
@@ -566,6 +640,11 @@ class DuplicateCleanerUI:
             f"Found {len(self.duplicates)} duplicate group(s) covering {total_dupes} "
             f"deletable file(s) in {folder} (last {days} day(s))."
         )
+        prefix_text = self.prefix_var.get().strip()
+        if prefix_text:
+            summary += f" Name prefix filter: '{prefix_text}'."
+        if not self.include_subfolders.get():
+            summary += " Subfolders: off."
         if self._last_scan_seconds is not None:
             if self._last_scan_seconds < 1:
                 summary += f" Scan time: {self._last_scan_seconds:.2f} s."
