@@ -134,12 +134,12 @@ def find_duplicate_groups(
             if do_hash_here:
                 if hash_max_bytes is not None and size > hash_max_bytes:
                     hash_skipped += 1
-                    continue
-                try:
-                    digest = _sha256(path)
-                except OSError:
-                    continue
-                components.append(("hash", digest))
+                else:
+                    try:
+                        digest = _sha256(path)
+                    except OSError:
+                        continue
+                    components.append(("hash", digest))
             if use_size:
                 components.append(("size", size))
             if use_name:
@@ -301,7 +301,7 @@ class DuplicateCleanerUI:
         ttk.Spinbox(hash_limit, from_=10, to=10_000, textvariable=self.hash_max_mb, width=6).grid(
             row=0, column=1, sticky="w", padx=(6, 4)
         )
-        ttk.Label(hash_limit, text="MB (skips larger files when hashing is on)").grid(
+        ttk.Label(hash_limit, text="MB (hashing skipped for larger files; other checks still apply)").grid(
             row=0, column=2, sticky="w"
         )
 
@@ -676,8 +676,19 @@ class DuplicateCleanerUI:
             else:
                 summary += f" Scan time: {self._last_scan_seconds/60:.1f} min."
         if self._last_hash_skipped:
-            summary += f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit."
-            self.notice_var.set("Hashing skipped for some large files due to the size cap.")
+            fallback_checks = any([self.use_size.get(), self.use_name.get(), self.use_mtime.get()])
+            if fallback_checks:
+                summary += (
+                    f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit;"
+                    " compared them using other selected checks."
+                )
+                self.notice_var.set("Hashing skipped for some large files; other checks were used.")
+            else:
+                summary += (
+                    f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit;"
+                    " no other checks were enabled for them."
+                )
+                self.notice_var.set("Hashing skipped for some large files; no other checks enabled.")
         else:
             self.notice_var.set("")
         self.summary_var.set(summary)
@@ -1066,21 +1077,21 @@ class DuplicateCleanerUI:
             "Delete Real Duplicates - Usage Guide\n\n"
             "1) Pick a folder and how many days back to scan. Days=0 scans everything.\n"
             "2) Choose duplicate checks. Hash+Size is safest; add Name/Modified time to tighten matches.\n"
-            "3) Optional: limit hashing to files under a size (helps avoid hashing very large files).\n"
+            "3) Optional: limit hashing to files under a size (large files fall back to other checks).\n"
             "4) Scan. Review the groups listed in the output pane.\n"
             "5) Delete duplicates. You choose which copy to keep per group unless the\n"
             "   'Skip keep-choice dialog for same folder' toggle auto-selects the newest file.\n\n"
             "What is content hash? It reads the entire file and computes a SHA-256 digest of its bytes.\n"
             "Using Hash + Size keeps accuracy the same as Hash alone but hashes fewer files (size filters\n"
-            "out obvious non-matches first). Accuracy only drops if you enable the hash size cap, because\n"
-            "very large files above that limit are skipped.\n\n"
+            "out obvious non-matches first). Accuracy can drop if you enable the hash size cap, because\n"
+            "very large files above that limit are compared without hashes.\n\n"
             "Examples:\n"
             "- Find identical photos in Downloads from the last week: set Days=7, enable Hash+Size.\n"
             "- Clean duplicate installers regardless of timestamp: enable Hash+Size, set Days=0.\n"
             "- Quick name+size pass (faster, slightly looser): disable Hash, enable Size+File name.\n\n"
             "Notes:\n"
             "- Deletions go to the Recycle Bin when possible (via send2trash). If unavailable, files are removed.\n"
-            "- Hashing large files can be slow; raise or disable the hash size limit if you need full coverage.\n"
+            "- Hashing large files can be slow; raise or disable the hash size limit if you need full hash coverage.\n"
             "- Duplicate groups show the most recent file first to simplify deciding which to keep.\n"
         )
         self._info("How to use", help_text)

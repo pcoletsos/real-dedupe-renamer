@@ -141,3 +141,30 @@ Files touched:
 - `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Hash size cap behavior)
+Date: 2025-12-23
+Intent:
+- Improve hash size cap behavior so large files still group by non-hash criteria with clear messaging.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`
+- `README.md`, `delete_real_duplicates.spec`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Hash size cap behavior)
+Date: 2025-12-23
+Intent:
+- Improve hash size cap behavior so large files still group by non-hash criteria with clear messaging.
+Status: Done
+User-facing changes:
+- Large files above the hash cap now still group by size/name/mtime, and the scan summary explains the fallback.
+Internal changes:
+- Hash cap no longer drops files from grouping; UI/help text updated to clarify hash-skipped behavior.
+Files touched:
+- `delete_real_duplicates.py`, `README.md`, `docs/FEATURES.md`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

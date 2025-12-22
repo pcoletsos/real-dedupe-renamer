@@ -15,10 +15,10 @@
 - How to verify: Set Days to 0 vs 7, toggle Include subfolders, and set a name prefix, then compare results.
 
 ### Hash size cap
-- Description: Skip hashing files above a configurable size limit while still reporting a warning.
+- Description: Skip hashing files above a configurable size limit while still grouping them by other enabled criteria, and report a warning.
 - Where: `delete_real_duplicates.py`
 - Status: Done
-- How to verify: Set a small hash limit and scan a folder with larger files; confirm the summary warns about skipped hashing.
+- How to verify: Set a small hash limit and scan a folder with larger files; confirm the summary warns and large files still group by size/name/mtime.
 
 ## Results and Review
 

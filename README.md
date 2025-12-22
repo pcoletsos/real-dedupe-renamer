@@ -16,7 +16,7 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
 
 ## Core features (v1.4.1)
 - Duplicate criteria toggles: content hash (SHA-256), size, file name, modified time.
-- Hash size cap: optionally skip hashing very large files.
+- Hash size cap: optionally skip hashing very large files while still comparing them with other checks.
 - Same-folder fast path: if all copies are in one folder, auto-keep the newest and skip the keep-choice dialog.
 - Results table: sortable columns, collapsible groups, filter by name/folder, double-click to open a file’s folder, right-click to copy a row/group.
 - Reports/exports: copy the full report to clipboard or export CSV.
@@ -48,6 +48,6 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
    - “Export CSV” saves file, folder, modified, size (bytes/human), and criteria.
 
 ## Notes
-- Content hash reads the whole file; size is a cheap prefilter. Accuracy only drops if you enable the hash size cap (skips very large files).
+- Content hash reads the whole file; size is a cheap prefilter. Accuracy can drop if you enable the hash size cap because large files are compared without hashes.
 - Settings file: `.duplicate_cleaner_settings.json` lives alongside the app.
 - Built for Windows; Tkinter is bundled in the EXE. Running from source requires Tkinter (included with standard Python installers).***
