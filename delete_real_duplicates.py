@@ -50,19 +50,26 @@ def gather_recent_files(
     *,
     name_prefix: str | None = None,
     include_subfolders: bool = True,
-) -> Iterable[FileEntry]:
-    """Yield files in folder modified within the last `days_back` days (0 = all), with optional prefix and recursion control."""
+) -> Tuple[List[FileEntry], int]:
+    """Collect files modified within the last `days_back` days (0 = all), returning entries and a skipped-error count."""
     cutoff = None if days_back <= 0 else _dt.datetime.now().timestamp() - days_back * 24 * 3600
     prefix = name_prefix.casefold() if name_prefix else None
     iterator = folder.rglob("*") if include_subfolders else folder.glob("*")
+    entries: List[FileEntry] = []
+    skipped = 0
     for path in iterator:
-        if not path.is_file():
+        try:
+            if not path.is_file():
+                continue
+            if prefix and not path.name.casefold().startswith(prefix):
+                continue
+            stat = path.stat()
+        except OSError:
+            skipped += 1
             continue
-        if prefix and not path.name.casefold().startswith(prefix):
-            continue
-        stat = path.stat()
         if cutoff is None or stat.st_mtime >= cutoff:
-            yield (path, stat.st_size, stat.st_mtime)
+            entries.append((path, stat.st_size, stat.st_mtime))
+    return entries, skipped
 
 
 def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
@@ -208,6 +215,7 @@ class DuplicateCleanerUI:
         self.folder_history: List[str] = []
         self._scanning = False
         self._last_hash_skipped = 0
+        self._last_scan_skipped = 0
         self._last_folder: Path | None = None
         self._last_days: int = 0
         self._last_scan_seconds: float | None = None
@@ -579,6 +587,7 @@ class DuplicateCleanerUI:
         self.summary_var.set("Scanning...")
         self.notice_var.set("")
         self._last_scan_seconds = None
+        self._last_scan_skipped = 0
 
         thread = threading.Thread(
             target=self._run_scan_thread,
@@ -594,13 +603,11 @@ class DuplicateCleanerUI:
         try:
             start = _dt.datetime.now()
             prefix = self.prefix_var.get().strip()
-            entries = list(
-                gather_recent_files(
-                    folder,
-                    days,
-                    name_prefix=prefix or None,
-                    include_subfolders=self.include_subfolders.get(),
-                )
+            entries, scan_skipped = gather_recent_files(
+                folder,
+                days,
+                name_prefix=prefix or None,
+                include_subfolders=self.include_subfolders.get(),
             )
             hash_limit = (
                 self.hash_max_mb.get() * 1024 * 1024 if self.use_hash.get() and self.hash_limit_enabled.get() else None
@@ -619,7 +626,7 @@ class DuplicateCleanerUI:
             return
 
         elapsed = (_dt.datetime.now() - start).total_seconds()
-        self.root.after(0, lambda: self._on_scan_complete(folder, days, duplicates, hash_skipped, elapsed))
+        self.root.after(0, lambda: self._on_scan_complete(folder, days, duplicates, hash_skipped, scan_skipped, elapsed))
 
     def _on_scan_complete(
         self,
@@ -627,10 +634,12 @@ class DuplicateCleanerUI:
         days: int,
         duplicates: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]],
         hash_skipped: int,
+        scan_skipped: int,
         elapsed_seconds: float,
     ) -> None:
         self.duplicates = duplicates
         self._last_hash_skipped = hash_skipped
+        self._last_scan_skipped = scan_skipped
         self._last_scan_seconds = elapsed_seconds
         self._last_folder = folder
         self._last_days = days
@@ -652,7 +661,13 @@ class DuplicateCleanerUI:
         self._item_meta.clear()
 
         if not self.duplicates:
-            self.summary_var.set(f"No duplicates found in {folder} (last {days} day(s)).")
+            summary = f"No duplicates found in {folder} (last {days} day(s))."
+            if self._last_scan_skipped:
+                summary += f" Skipped {self._last_scan_skipped} file(s) due to scan errors."
+                self.notice_var.set("Some files could not be scanned; see summary.")
+            else:
+                self.notice_var.set("")
+            self.summary_var.set(summary)
             self.delete_btn.configure(state="disabled")
             self._set_actions_enabled(False)
             self._set_filter_enabled(False)
@@ -675,6 +690,7 @@ class DuplicateCleanerUI:
                 summary += f" Scan time: {self._last_scan_seconds:.1f} s."
             else:
                 summary += f" Scan time: {self._last_scan_seconds/60:.1f} min."
+        notice_parts: List[str] = []
         if self._last_hash_skipped:
             fallback_checks = any([self.use_size.get(), self.use_name.get(), self.use_mtime.get()])
             if fallback_checks:
@@ -682,15 +698,17 @@ class DuplicateCleanerUI:
                     f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit;"
                     " compared them using other selected checks."
                 )
-                self.notice_var.set("Hashing skipped for some large files; other checks were used.")
+                notice_parts.append("Hashing skipped for some large files; other checks were used.")
             else:
                 summary += (
                     f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit;"
                     " no other checks were enabled for them."
                 )
-                self.notice_var.set("Hashing skipped for some large files; no other checks enabled.")
-        else:
-            self.notice_var.set("")
+                notice_parts.append("Hashing skipped for some large files; no other checks enabled.")
+        if self._last_scan_skipped:
+            summary += f" Note: skipped {self._last_scan_skipped} file(s) due to scan errors."
+            notice_parts.append("Some files could not be scanned; see summary.")
+        self.notice_var.set(" ".join(notice_parts))
         self.summary_var.set(summary)
         self._set_actions_enabled(True)
         self._set_filter_enabled(True)

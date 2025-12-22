@@ -14,6 +14,12 @@
 - Status: Done
 - How to verify: Set Days to 0 vs 7, toggle Include subfolders, and set a name prefix, then compare results.
 
+### Scan error resilience
+- Description: Unreadable files are skipped without failing the scan, and the summary reports how many were skipped.
+- Where: `delete_real_duplicates.py`
+- Status: Done
+- How to verify: Include an unreadable file in the scan scope and confirm the summary notes skipped files.
+
 ### Hash size cap
 - Description: Skip hashing files above a configurable size limit while still grouping them by other enabled criteria, and report a warning.
 - Where: `delete_real_duplicates.py`

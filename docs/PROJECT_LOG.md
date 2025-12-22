@@ -183,3 +183,28 @@ Files touched:
 - `dist/delete_real_duplicates-1.4.2.exe`, `archive/delete_real_duplicates-1.4.1.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Scan error handling)
+Date: 2025-12-23
+Intent:
+- Make `gather_recent_files` resilient to per-file `OSError` failures, track skipped files, and show the skipped count in the scan summary.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Scan error handling)
+Date: 2025-12-23
+Intent:
+- Make `gather_recent_files` resilient to per-file `OSError` failures, track skipped files, and show the skipped count in the scan summary.
+Status: Done
+User-facing changes:
+- Scans skip unreadable files without failing, and the scan summary reports how many were skipped.
+Internal changes:
+- `gather_recent_files` counts per-file `OSError` skips and the UI summary includes the skipped count.
+Files touched:
+- `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
