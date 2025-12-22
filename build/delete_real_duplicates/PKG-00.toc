@@ -1,4 +1,4 @@
-('F:\\repos\\oss\\delete-real-duplicates\\build\\delete_real_duplicates\\delete_real_duplicates-1.4.0.pkg',
+('F:\\repos\\oss\\delete-real-duplicates\\build\\delete_real_duplicates\\delete_real_duplicates-1.4.1.pkg',
  {'BINARY': True,
   'DATA': True,
   'EXECUTABLE': True,

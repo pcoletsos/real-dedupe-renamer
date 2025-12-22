@@ -126,3 +126,18 @@ Files touched:
 - `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/DECISIONS.md`
 Tests:
 - Not run.
+
+## 2025-12-23 (Release 1.4.1)
+Date: 2025-12-23
+Intent:
+- Bump release references and rebuild the Windows EXE after merging to main.
+Status: Done
+User-facing changes:
+- Updated README to point at the 1.4.1 executable and core features header.
+Internal changes:
+- Updated PyInstaller spec name, built the 1.4.1 EXE, and archived the 1.4.0 artifact.
+Files touched:
+- `README.md`, `delete_real_duplicates.spec`, `dist/delete_real_duplicates-1.4.1.exe`, `archive/delete_real_duplicates-1.4.0.exe`
+- `docs/PROJECT_LOG.md`
+Tests:
+- `python -m PyInstaller delete_real_duplicates.spec`
