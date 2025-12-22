@@ -100,3 +100,29 @@ Files touched:
 - `README.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`, `delete_real_duplicates.spec`, `dist/`, `archive/`, `build/`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start)
+Date: 2025-12-23
+Intent:
+- Decide how to handle committed `.duplicate_cleaner_settings.json` files and replace them with a sanitized sample.
+Status: In Progress
+Planned files:
+- `.gitignore`, `.duplicate_cleaner_settings.json`, `dist/.duplicate_cleaner_settings.json`, `.duplicate_cleaner_settings.sample.json`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/DECISIONS.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done)
+Date: 2025-12-23
+Intent:
+- Decide how to handle committed `.duplicate_cleaner_settings.json` files and replace them with a sanitized sample.
+Status: Done
+User-facing changes:
+- None (repo hygiene only).
+Internal changes:
+- Stopped tracking runtime settings, added a sanitized sample, and documented the decision.
+Files touched:
+- `.gitignore`, `.duplicate_cleaner_settings.sample.json`, `dist/.duplicate_cleaner_settings.sample.json`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/DECISIONS.md`
+Tests:
+- Not run.

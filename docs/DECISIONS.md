@@ -29,3 +29,9 @@ Decision: Package a windowed EXE using PyInstaller (`delete_real_duplicates.spec
 Context: Users should be able to run the tool without installing Python.
 Options considered: Source-only distribution; installer-based packaging.
 Consequences: Large build artifacts and versioned EXEs tracked in `dist/`; documentation must stay aligned with build versions.
+
+## D006 - Ignore runtime settings in git and ship a sanitized sample
+Decision: Stop committing `.duplicate_cleaner_settings.json` and provide a sanitized `.duplicate_cleaner_settings.sample.json` for builds/releases.
+Context: The committed settings files contained user-specific paths and should not ship in release artifacts.
+Options considered: Keep a tracked settings file; move settings to an OS config directory; rely on defaults only.
+Consequences: Runtime settings are untracked and recreated locally; builds include a safe template for reference.
