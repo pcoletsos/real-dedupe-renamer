@@ -91,7 +91,12 @@ Confidence: [Medium]
 Date: 2025-12-22
 Intent:
 - Align README and release artifacts for 1.4.0, archive older builds, and build a new EXE after merge.
-Status: In Progress
-Planned files:
-- `README.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`, `delete_real_duplicates.spec`, `dist/`, `archive/`
-Tests: Not run (start)
+Status: Done
+User-facing changes:
+- README now references the 1.4.0 EXE and current artifact layout.
+Internal changes:
+- Archived older release artifacts, updated the PyInstaller spec name, and built the 1.4.0 EXE.
+Files touched:
+- `README.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`, `delete_real_duplicates.spec`, `dist/`, `archive/`, `build/`
+Tests:
+- `python -m PyInstaller delete_real_duplicates.spec`
