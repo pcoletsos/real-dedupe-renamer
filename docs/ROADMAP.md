@@ -9,6 +9,7 @@
 Status tags: [Planned], [In Progress], [Paused], [Blocked], [Abandoned], [Done]
 
 ## Now
+- [Done] Help icon moved to top-right. User value: discreet access without cluttering primary controls. Technical approach: move the ? icon to a top-right header area and make it a minimal clickable label. Effort: XS. Dependencies: none. Risks: discoverability if too subtle. Result: help is now a small top-right icon link. Tests: not run.
 - [Done] Discreet help icon in top-right. User value: access help without visual clutter. Technical approach: replace the Help button with a question-mark icon aligned to the top-right that opens the help menu. Effort: XS. Dependencies: none. Risks: discoverability if the icon is too subtle. Result: Help is now a ? icon on the top-right. Tests: not run.
 - [Done] Help access without menu bar. User value: reclaim vertical space while keeping help easy to find. Technical approach: remove the menubar and add a Help button that opens the existing How to use/Optional checks dialogs. Effort: XS. Dependencies: none. Risks: discoverability if button placement is unclear. Result: Help button replaces the menubar without losing help access. Tests: not run.
 - [Done] Status box border continuity. User value: clean, uninterrupted status panel borders. Technical approach: adjust the status panel layout to avoid broken frame lines and ensure consistent borders. Effort: XS. Dependencies: none. Risks: minor layout changes. Result: status panel now uses a framed box with continuous borders. Tests: not run.

@@ -901,3 +901,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.5.exe`, `archive/delete_real_duplicates-1.7.4.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Help icon top-right)
+Date: 2025-12-23
+Intent:
+- Move the help ? icon to the top-right and make it a minimal link-style control.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Help icon top-right)
+Date: 2025-12-23
+Intent:
+- Move the help ? icon to the top-right and make it a minimal link-style control.
+Status: Done
+User-facing changes:
+- Help icon is now a small top-right link instead of a full button beside view controls.
+Internal changes:
+- Added a header row to host the help icon and adjusted layout rows.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

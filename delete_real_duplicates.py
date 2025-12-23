@@ -297,10 +297,17 @@ class DuplicateCleanerUI:
         pass
 
     def _build_layout(self) -> None:
+        header = ttk.Frame(self.root, padding=(12, 6, 12, 0))
+        header.grid(row=0, column=0, sticky="ew")
+        header.columnconfigure(0, weight=1)
+        self.help_label = ttk.Label(header, text="?", cursor="hand2", padding=(4, 0))
+        self.help_label.grid(row=0, column=1, sticky="e")
+        self.help_label.bind("<Button-1>", lambda _event: self._show_help_menu())
+
         frm = ttk.Frame(self.root, padding=12)
-        frm.grid(row=0, column=0, sticky="nsew")
+        frm.grid(row=1, column=0, sticky="nsew")
         self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
+        self.root.rowconfigure(1, weight=1)
         utility_btn_width = 14
         primary_btn_width = 18
         action_btn_width = 14
@@ -328,9 +335,6 @@ class DuplicateCleanerUI:
             variable=self.view_mode,
             command=self._on_view_change,
         ).grid(row=0, column=2, sticky="w", padx=(6, 0))
-        view_frame.columnconfigure(3, weight=1)
-        self.help_btn = ttk.Button(view_frame, text="?", command=self._show_help_menu, width=3)
-        self.help_btn.grid(row=0, column=4, sticky="e")
 
         # Folder chooser.
         ttk.Label(frm, text="Folder to scan:").grid(row=1, column=0, sticky="w")
@@ -542,9 +546,9 @@ class DuplicateCleanerUI:
         menu = tk.Menu(self.root, tearoff=False)
         menu.add_command(label="How to use", command=self._show_help)
         menu.add_command(label="Optional checks", command=self._show_optional_checks)
-        if hasattr(self, "help_btn"):
-            x = self.help_btn.winfo_rootx()
-            y = self.help_btn.winfo_rooty() + self.help_btn.winfo_height()
+        if hasattr(self, "help_label"):
+            x = self.help_label.winfo_rootx()
+            y = self.help_label.winfo_rooty() + self.help_label.winfo_height()
         else:
             x = self.root.winfo_rootx() + 40
             y = self.root.winfo_rooty() + 40
