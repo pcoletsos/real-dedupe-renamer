@@ -5,7 +5,11 @@ a = Analysis(
     ['delete_real_duplicates.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('assets/help_icon_12.png', 'assets'),
+        ('assets/help_icon_14.png', 'assets'),
+        ('assets/help_icon_16.png', 'assets'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

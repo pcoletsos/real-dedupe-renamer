@@ -6,6 +6,7 @@ import os
 import threading
 import csv
 import json
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
@@ -32,6 +33,12 @@ SIMPLIFIED_DEFAULTS = {
     "skip_same_folder_prompt": True,
     "rename_kept_enabled": True,
 }
+
+
+def _resource_path(relative: str) -> Path:
+    if getattr(sys, "_MEIPASS", None):
+        return Path(sys._MEIPASS) / relative  # type: ignore[attr-defined]
+    return Path(__file__).resolve().parent / relative
 
 
 def default_downloads_folder() -> Path:
@@ -328,7 +335,17 @@ class DuplicateCleanerUI:
             variable=self.view_mode,
             command=self._on_view_change,
         ).grid(row=0, column=2, sticky="w", padx=(6, 0))
-        self.help_label = ttk.Label(frm, text="?", cursor="hand2", padding=(4, 0))
+        self.help_label = ttk.Label(frm, cursor="hand2", padding=(2, 0))
+        self._help_icon = None
+        try:
+            icon_path = _resource_path("assets/help_icon_14.png")
+            if icon_path.exists():
+                self._help_icon = tk.PhotoImage(file=str(icon_path))
+                self.help_label.configure(image=self._help_icon)
+            else:
+                self.help_label.configure(text="?")
+        except Exception:
+            self.help_label.configure(text="?")
         self.help_label.grid(row=0, column=2, sticky="e", pady=(0, 4))
         self.help_label.bind("<Button-1>", lambda _event: self._show_help_menu())
 

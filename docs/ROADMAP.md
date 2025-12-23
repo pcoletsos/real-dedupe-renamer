@@ -9,6 +9,7 @@
 Status tags: [Planned], [In Progress], [Paused], [Blocked], [Abandoned], [Done]
 
 ## Now
+- [Done] Add help icon PNG asset. User value: discreet help icon looks like standard app help affordance. Technical approach: add 12/14/16px filled-circle ? PNGs and use 14px by default. Effort: XS. Dependencies: none. Risks: asset bundling in PyInstaller. Result: help icon uses a PNG asset with size variants. Tests: not run.
 - [Done] Reduce top padding from help icon header. User value: remove wasted vertical space while keeping the help icon top-right. Technical approach: move the help icon into the main grid row and remove the extra header frame. Effort: XS. Dependencies: none. Risks: minor layout shifts. Result: help icon sits top-right without extra header space. Tests: not run.
 - [Done] Help icon moved to top-right. User value: discreet access without cluttering primary controls. Technical approach: move the ? icon to a top-right header area and make it a minimal clickable label. Effort: XS. Dependencies: none. Risks: discoverability if too subtle. Result: help is now a small top-right icon link. Tests: not run.
 - [Done] Discreet help icon in top-right. User value: access help without visual clutter. Technical approach: replace the Help button with a question-mark icon aligned to the top-right that opens the help menu. Effort: XS. Dependencies: none. Risks: discoverability if the icon is too subtle. Result: Help is now a ? icon on the top-right. Tests: not run.

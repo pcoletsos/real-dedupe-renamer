@@ -983,3 +983,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.7.exe`, `archive/delete_real_duplicates-1.7.6.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Help icon PNG asset)
+Date: 2025-12-23
+Intent:
+- Add a filled-circle question-mark PNG and use it for the help icon.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`, `delete_real_duplicates.spec`, `assets/`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Help icon PNG asset)
+Date: 2025-12-23
+Intent:
+- Add a filled-circle question-mark PNG and use it for the help icon.
+Status: Done
+User-facing changes:
+- Help icon now uses a filled-circle ? PNG (14px) with available size variants.
+Internal changes:
+- Added PNG assets and bundled them in the PyInstaller spec; load via resource path.
+Files touched:
+- `delete_real_duplicates.py`, `delete_real_duplicates.spec`, `assets/help_icon_12.png`, `assets/help_icon_14.png`, `assets/help_icon_16.png`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
