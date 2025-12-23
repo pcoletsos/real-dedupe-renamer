@@ -1,5 +1,6 @@
 {
   "folder": "C:\\path\\to\\scan",
+  "view_mode": "simplified",
   "days": 2,
   "use_hash": true,
   "use_size": true,

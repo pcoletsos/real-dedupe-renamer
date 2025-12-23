@@ -654,3 +654,30 @@ Files touched:
 - `dist/delete_real_duplicates-1.6.6.exe`, `archive/delete_real_duplicates-1.6.5.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Simplified view)
+Date: 2025-12-23
+Intent:
+- Add a simplified view mode with fixed defaults, auto-keep newest, and a final confirmation before deleting.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `README.md`, `docs/FEATURES.md`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Simplified view)
+Date: 2025-12-23
+Intent:
+- Add a simplified view mode with fixed defaults, auto-keep newest, and a final confirmation before deleting.
+Status: Done
+User-facing changes:
+- Added a view toggle with a simplified mode that applies fixed defaults, hides advanced controls, and confirms auto-delete with a Review in Advanced option.
+Internal changes:
+- Persisted view mode in settings and added a simplified auto-delete flow that keeps the newest file per group.
+Files touched:
+- `delete_real_duplicates.py`, `.duplicate_cleaner_settings.sample.json`, `dist/.duplicate_cleaner_settings.sample.json`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`
+Tests:
+- Not run.

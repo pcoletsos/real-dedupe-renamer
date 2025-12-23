@@ -19,6 +19,19 @@ except ImportError as exc:  # pragma: no cover - tkinter is standard but allow c
 
 FileEntry = Tuple[Path, int, float]  # path, size, modified timestamp
 SETTINGS_PATH = Path.cwd() / ".duplicate_cleaner_settings.json"
+SIMPLIFIED_DEFAULTS = {
+    "days": 7,
+    "use_hash": True,
+    "use_size": False,
+    "use_name": False,
+    "use_mtime": False,
+    "hash_limit_enabled": True,
+    "hash_max_mb": 500,
+    "include_subfolders": True,
+    "name_prefix": "",
+    "skip_same_folder_prompt": True,
+    "rename_kept_enabled": True,
+}
 
 
 def default_downloads_folder() -> Path:
@@ -237,6 +250,7 @@ class DuplicateCleanerUI:
         )
         self.style.configure("ColumnLines.Treeview.Heading", bordercolor="#d0d0d0", relief="solid")
 
+        self.view_mode = tk.StringVar(value="simplified")
         self.folder_var = tk.StringVar(value=str(default_downloads_folder()))
         self.days_var = tk.IntVar(value=2)
         self.use_hash = tk.BooleanVar(value=True)
@@ -268,10 +282,16 @@ class DuplicateCleanerUI:
         self._actions_enabled = False
         self._selection_updating = False
         self._message_wrap_width = 0
+        self._advanced_settings: Dict[str, object] = {}
+        self._advanced_widgets: List[tk.Widget] = []
+        self._last_view_mode: str | None = None
+        self._last_scan_mode: str | None = None
+        self._last_scan_settings: Dict[str, object] = {}
 
         self._build_menu()
         self._build_layout()
         self._load_settings()
+        self._apply_view_mode()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_menu(self) -> None:
@@ -291,16 +311,40 @@ class DuplicateCleanerUI:
         primary_btn_width = 18
         action_btn_width = 14
 
+        self._advanced_widgets = []
+
+        def register_advanced(*widgets: tk.Widget) -> None:
+            self._advanced_widgets.extend(widgets)
+
+        # View mode toggle.
+        view_frame = ttk.Frame(frm)
+        view_frame.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        ttk.Label(view_frame, text="View:").grid(row=0, column=0, sticky="w")
+        ttk.Radiobutton(
+            view_frame,
+            text="Simplified",
+            value="simplified",
+            variable=self.view_mode,
+            command=self._on_view_change,
+        ).grid(row=0, column=1, sticky="w", padx=(6, 0))
+        ttk.Radiobutton(
+            view_frame,
+            text="Advanced",
+            value="advanced",
+            variable=self.view_mode,
+            command=self._on_view_change,
+        ).grid(row=0, column=2, sticky="w", padx=(6, 0))
+
         # Folder chooser.
-        ttk.Label(frm, text="Folder to scan:").grid(row=0, column=0, sticky="w")
+        ttk.Label(frm, text="Folder to scan:").grid(row=1, column=0, sticky="w")
         self.folder_combo = ttk.Combobox(frm, textvariable=self.folder_var, width=48, values=self.folder_history)
-        self.folder_combo.grid(row=0, column=1, sticky="ew", padx=(4, 8))
+        self.folder_combo.grid(row=1, column=1, sticky="ew", padx=(4, 8))
         self.folder_combo.bind("<Button-1>", self._open_folder_dropdown)
         self.folder_combo.bind("<Down>", self._open_folder_dropdown)
         self.folder_combo.bind("<<ComboboxSelected>>", self._on_folder_selected)
         self.folder_combo.bind("<Escape>", self._close_folder_dropdown)
         folder_actions = ttk.Frame(frm)
-        folder_actions.grid(row=0, column=2, sticky="e")
+        folder_actions.grid(row=1, column=2, sticky="e")
         browse_btn = ttk.Button(folder_actions, text="Browse...", command=self._browse_folder, width=utility_btn_width)
         browse_btn.grid(row=0, column=0, padx=(0, 6))
         clear_btn = ttk.Button(
@@ -310,35 +354,37 @@ class DuplicateCleanerUI:
         frm.columnconfigure(1, weight=1)
 
         # Days back.
-        ttk.Label(frm, text="Days back:").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        days_label = ttk.Label(frm, text="Days back:")
+        days_label.grid(row=2, column=0, sticky="w", pady=(6, 0))
         days_spin = ttk.Spinbox(frm, from_=0, to=365, textvariable=self.days_var, width=6)
-        days_spin.grid(row=1, column=1, sticky="w", pady=(6, 0))
+        days_spin.grid(row=2, column=1, sticky="w", pady=(6, 0))
         quick_days = ttk.Frame(frm)
-        quick_days.grid(row=1, column=2, sticky="w", pady=(6, 0))
+        quick_days.grid(row=2, column=2, sticky="w", pady=(6, 0))
         ttk.Label(quick_days, text="Quick:").grid(row=0, column=0, sticky="w", padx=(0, 4))
         quick_presets = [("all", 0), ("week", 7), ("month", 30)]
         for idx, (label, val) in enumerate(quick_presets, start=1):
             ttk.Button(quick_days, text=label, width=6, command=lambda v=val: self._set_days(v)).grid(
                 row=0, column=idx, padx=(0, 2)
             )
+        register_advanced(days_label, days_spin, quick_days)
 
         # Subfolder toggle.
-        ttk.Checkbutton(frm, text="Include subfolders", variable=self.include_subfolders).grid(
-            row=2, column=0, columnspan=3, sticky="w", pady=(6, 0)
-        )
+        include_subfolders = ttk.Checkbutton(frm, text="Include subfolders", variable=self.include_subfolders)
+        include_subfolders.grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        register_advanced(include_subfolders)
 
         # Optional name prefix filter.
-        ttk.Label(frm, text="Only scan file names starting with (optional):").grid(
-            row=3, column=0, sticky="w", pady=(6, 0)
-        )
-        ttk.Entry(frm, textvariable=self.prefix_var, width=40).grid(
-            row=3, column=1, sticky="ew", padx=(4, 0), pady=(6, 0)
-        )
-        ttk.Label(frm, text="Leave blank to scan all files.").grid(row=3, column=2, sticky="w", pady=(6, 0))
+        prefix_label = ttk.Label(frm, text="Only scan file names starting with (optional):")
+        prefix_label.grid(row=4, column=0, sticky="w", pady=(6, 0))
+        prefix_entry = ttk.Entry(frm, textvariable=self.prefix_var, width=40)
+        prefix_entry.grid(row=4, column=1, sticky="ew", padx=(4, 0), pady=(6, 0))
+        prefix_note = ttk.Label(frm, text="Leave blank to scan all files.")
+        prefix_note.grid(row=4, column=2, sticky="w", pady=(6, 0))
+        register_advanced(prefix_label, prefix_entry, prefix_note)
 
         # Duplicate criteria toggles.
         criteria = ttk.LabelFrame(frm, text="Duplicate checks", padding=(8, 6))
-        criteria.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(8, 4))
+        criteria.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(8, 4))
         ttk.Checkbutton(criteria, text="Content hash (SHA-256)", variable=self.use_hash).grid(
             row=0, column=0, sticky="w", padx=(0, 10)
         )
@@ -362,22 +408,26 @@ class DuplicateCleanerUI:
         ttk.Label(hash_limit, text="MB (hashing skipped for larger files; other checks still apply)").grid(
             row=0, column=2, sticky="w"
         )
+        register_advanced(criteria)
 
         # Deletion behavior.
-        ttk.Checkbutton(
+        skip_prompt = ttk.Checkbutton(
             frm,
             text="Skip keep-choice dialog when duplicates are in the same folder (auto keep newest)",
             variable=self.skip_same_folder_prompt,
-        ).grid(row=5, column=0, columnspan=3, sticky="w", pady=(6, 0))
-        ttk.Checkbutton(
+        )
+        skip_prompt.grid(row=6, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        rename_kept = ttk.Checkbutton(
             frm,
             text="Rename kept files after delete (pattern: name_YYYY-MM-DD_HH-MM-SS_###.ext)",
             variable=self.rename_kept_enabled,
-        ).grid(row=6, column=0, columnspan=3, sticky="w", pady=(2, 6))
+        )
+        rename_kept.grid(row=7, column=0, columnspan=3, sticky="w", pady=(2, 6))
+        register_advanced(skip_prompt, rename_kept)
 
         # Buttons.
         btn_frame = ttk.Frame(frm)
-        btn_frame.grid(row=7, column=0, columnspan=3, sticky="w", pady=(4, 2))
+        btn_frame.grid(row=8, column=0, columnspan=3, sticky="w", pady=(4, 2))
         self.scan_btn = ttk.Button(
             btn_frame, text="Scan", command=self._scan, style="Primary.TButton", width=primary_btn_width
         )
@@ -391,12 +441,13 @@ class DuplicateCleanerUI:
             width=primary_btn_width,
         )
         self.delete_btn.grid(row=0, column=1, padx=(0, 4))
+        register_advanced(self.delete_btn)
 
         # Status.
         self.notice_var = tk.StringVar(value="")
         self.summary_var = tk.StringVar(value="Scan results will appear here.")
         status_frame = ttk.LabelFrame(frm, text="Status", padding=(8, 6))
-        status_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(4, 2))
+        status_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(4, 2))
         status_frame.columnconfigure(0, weight=1)
         status_frame.grid_propagate(False)
         line_height = tkfont.nametofont("TkDefaultFont").metrics("linespace")
@@ -409,11 +460,11 @@ class DuplicateCleanerUI:
         self.notice_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
         status_frame.bind("<Configure>", self._update_message_wrap)
 
-        actions_frame = ttk.Frame(frm)
-        actions_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(2, 4))
-        actions_frame.columnconfigure(1, weight=1)
+        self.actions_frame = ttk.Frame(frm)
+        self.actions_frame.grid(row=10, column=0, columnspan=3, sticky="ew", pady=(2, 4))
+        self.actions_frame.columnconfigure(1, weight=1)
         self.delete_selected_btn = ttk.Button(
-            actions_frame,
+            self.actions_frame,
             text="Delete selected",
             command=self._delete_selected,
             state="disabled",
@@ -421,10 +472,10 @@ class DuplicateCleanerUI:
             width=action_btn_width,
         )
         self.delete_selected_btn.grid(row=0, column=0, sticky="w", padx=(0, 10))
-        ttk.Label(actions_frame, textvariable=self.selection_var).grid(
+        ttk.Label(self.actions_frame, textvariable=self.selection_var).grid(
             row=0, column=1, sticky="e", padx=(0, 10)
         )
-        action_buttons = ttk.Frame(actions_frame)
+        action_buttons = ttk.Frame(self.actions_frame)
         action_buttons.grid(row=0, column=2, sticky="e")
         self.copy_btn = ttk.Button(
             action_buttons, text="Copy report", command=self._copy_report, state="disabled", width=action_btn_width
@@ -442,25 +493,27 @@ class DuplicateCleanerUI:
             action_buttons, text="Expand all", command=self._expand_all, state="disabled", width=action_btn_width
         )
         self.expand_btn.grid(row=0, column=3)
+        register_advanced(self.actions_frame)
 
         # Filter.
-        filter_frame = ttk.Frame(frm)
-        filter_frame.grid(row=10, column=0, columnspan=3, sticky="ew", pady=(0, 4))
-        filter_frame.columnconfigure(1, weight=1)
-        ttk.Label(filter_frame, text="Filter (name or folder contains):").grid(row=0, column=0, sticky="w")
-        self.filter_entry = ttk.Entry(filter_frame, textvariable=self.filter_var, width=40, state="disabled")
+        self.filter_frame = ttk.Frame(frm)
+        self.filter_frame.grid(row=11, column=0, columnspan=3, sticky="ew", pady=(0, 4))
+        self.filter_frame.columnconfigure(1, weight=1)
+        ttk.Label(self.filter_frame, text="Filter (name or folder contains):").grid(row=0, column=0, sticky="w")
+        self.filter_entry = ttk.Entry(self.filter_frame, textvariable=self.filter_var, width=40, state="disabled")
         self.filter_entry.grid(row=0, column=1, sticky="ew", padx=(4, 0))
         self.filter_var.trace_add("write", lambda *_: self._apply_filter())
+        register_advanced(self.filter_frame)
 
-        tree_frame = ttk.Frame(frm)
-        tree_frame.grid(row=11, column=0, columnspan=3, sticky="nsew", pady=(0, 4))
-        frm.rowconfigure(11, weight=1)
-        tree_frame.rowconfigure(0, weight=1)
-        tree_frame.columnconfigure(0, weight=1)
+        self.tree_frame = ttk.Frame(frm)
+        self.tree_frame.grid(row=12, column=0, columnspan=3, sticky="nsew", pady=(0, 4))
+        frm.rowconfigure(12, weight=1)
+        self.tree_frame.rowconfigure(0, weight=1)
+        self.tree_frame.columnconfigure(0, weight=1)
 
         columns = ("location", "modified", "size")
         self.results_tree = ttk.Treeview(
-            tree_frame, columns=columns, show="tree headings", selectmode="extended", style="ColumnLines.Treeview"
+            self.tree_frame, columns=columns, show="tree headings", selectmode="extended", style="ColumnLines.Treeview"
         )
         self.results_tree.heading("#0", text="File / Group", anchor="w")
         self.results_tree.heading("location", text="Folder / Criteria", anchor="w")
@@ -474,14 +527,89 @@ class DuplicateCleanerUI:
         for col in ("#0",) + columns:
             self.results_tree.heading(col, command=lambda c=col: self._sort_tree(c))
 
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.results_tree.yview)
-        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.results_tree.xview)
+        vsb = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.results_tree.yview)
+        hsb = ttk.Scrollbar(self.tree_frame, orient="horizontal", command=self.results_tree.xview)
         self.results_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
         self.results_tree.bind("<Double-1>", self._on_tree_double_click)
         self.results_tree.bind("<Button-3>", self._on_tree_right_click)
         self.results_tree.bind("<<TreeviewSelect>>", self._on_tree_selection_change)
+        register_advanced(self.tree_frame)
+
+    def _on_view_change(self) -> None:
+        self._apply_view_mode()
+
+    def _snapshot_advanced_settings(self) -> Dict[str, object]:
+        return {
+            "days": int(self.days_var.get()),
+            "use_hash": bool(self.use_hash.get()),
+            "use_size": bool(self.use_size.get()),
+            "use_name": bool(self.use_name.get()),
+            "use_mtime": bool(self.use_mtime.get()),
+            "hash_limit_enabled": bool(self.hash_limit_enabled.get()),
+            "hash_max_mb": int(self.hash_max_mb.get()),
+            "skip_same_folder_prompt": bool(self.skip_same_folder_prompt.get()),
+            "rename_kept_enabled": bool(self.rename_kept_enabled.get()),
+            "show_keep_full_paths": bool(self.show_keep_full_paths.get()),
+            "name_prefix": self.prefix_var.get().strip(),
+            "include_subfolders": bool(self.include_subfolders.get()),
+        }
+
+    def _apply_advanced_settings(self, settings: Dict[str, object]) -> None:
+        self.days_var.set(int(settings.get("days", self.days_var.get())))
+        self.use_hash.set(bool(settings.get("use_hash", self.use_hash.get())))
+        self.use_size.set(bool(settings.get("use_size", self.use_size.get())))
+        self.use_name.set(bool(settings.get("use_name", self.use_name.get())))
+        self.use_mtime.set(bool(settings.get("use_mtime", self.use_mtime.get())))
+        self.hash_limit_enabled.set(bool(settings.get("hash_limit_enabled", self.hash_limit_enabled.get())))
+        self.hash_max_mb.set(int(settings.get("hash_max_mb", self.hash_max_mb.get())))
+        self.skip_same_folder_prompt.set(bool(settings.get("skip_same_folder_prompt", self.skip_same_folder_prompt.get())))
+        self.rename_kept_enabled.set(bool(settings.get("rename_kept_enabled", self.rename_kept_enabled.get())))
+        self.show_keep_full_paths.set(bool(settings.get("show_keep_full_paths", self.show_keep_full_paths.get())))
+        self.prefix_var.set(str(settings.get("name_prefix", self.prefix_var.get()) or "").strip())
+        self.include_subfolders.set(bool(settings.get("include_subfolders", self.include_subfolders.get())))
+
+    def _apply_simplified_defaults(self) -> None:
+        self.days_var.set(int(SIMPLIFIED_DEFAULTS["days"]))
+        self.use_hash.set(bool(SIMPLIFIED_DEFAULTS["use_hash"]))
+        self.use_size.set(bool(SIMPLIFIED_DEFAULTS["use_size"]))
+        self.use_name.set(bool(SIMPLIFIED_DEFAULTS["use_name"]))
+        self.use_mtime.set(bool(SIMPLIFIED_DEFAULTS["use_mtime"]))
+        self.hash_limit_enabled.set(bool(SIMPLIFIED_DEFAULTS["hash_limit_enabled"]))
+        self.hash_max_mb.set(int(SIMPLIFIED_DEFAULTS["hash_max_mb"]))
+        self.skip_same_folder_prompt.set(bool(SIMPLIFIED_DEFAULTS["skip_same_folder_prompt"]))
+        self.rename_kept_enabled.set(bool(SIMPLIFIED_DEFAULTS["rename_kept_enabled"]))
+        self.prefix_var.set(str(SIMPLIFIED_DEFAULTS["name_prefix"]))
+        self.include_subfolders.set(bool(SIMPLIFIED_DEFAULTS["include_subfolders"]))
+
+    def _set_advanced_visible(self, visible: bool) -> None:
+        for widget in self._advanced_widgets:
+            if visible:
+                widget.grid()
+            else:
+                widget.grid_remove()
+
+    def _apply_view_mode(self, *, restore_advanced: bool = True) -> None:
+        mode = self.view_mode.get()
+        if mode == "simplified":
+            if self._last_view_mode != "simplified":
+                self._advanced_settings = self._snapshot_advanced_settings()
+            self._apply_simplified_defaults()
+            self._set_advanced_visible(False)
+            self.delete_btn.configure(state="disabled")
+            self._set_actions_enabled(False)
+            self._set_filter_enabled(False)
+            self._update_selection_status()
+        else:
+            if restore_advanced and self._advanced_settings:
+                self._apply_advanced_settings(self._advanced_settings)
+            self._set_advanced_visible(True)
+            if self._last_folder is not None:
+                if self.duplicates or self._last_scan_seconds is not None:
+                    self._render_results(self._last_folder, self._last_days)
+            self._update_selection_status()
+        self._last_view_mode = mode
 
     def _update_message_wrap(self, event: tk.Event) -> None:
         if event.width <= 1:
@@ -499,6 +627,9 @@ class DuplicateCleanerUI:
             if SETTINGS_PATH.exists():
                 data = SETTINGS_PATH.read_text(encoding="utf-8")
                 opts = dict(json.loads(data))
+                view_mode = str(opts.get("view_mode", "")).strip().lower()
+                if view_mode in {"simplified", "advanced"}:
+                    self.view_mode.set(view_mode)
                 self.folder_var.set(opts.get("folder", self.folder_var.get()))
                 self.days_var.set(int(opts.get("days", self.days_var.get())))
                 self.use_hash.set(bool(opts.get("use_hash", self.use_hash.get())))
@@ -527,21 +658,34 @@ class DuplicateCleanerUI:
             pass
 
     def _save_settings(self) -> None:
+        if self.view_mode.get() == "advanced":
+            self._advanced_settings = self._snapshot_advanced_settings()
+        if not self._advanced_settings:
+            self._advanced_settings = self._snapshot_advanced_settings()
         opts = {
             "folder": self.folder_var.get(),
-            "days": int(self.days_var.get()),
-            "use_hash": bool(self.use_hash.get()),
-            "use_size": bool(self.use_size.get()),
-            "use_name": bool(self.use_name.get()),
-            "use_mtime": bool(self.use_mtime.get()),
-            "hash_limit_enabled": bool(self.hash_limit_enabled.get()),
-            "hash_max_mb": int(self.hash_max_mb.get()),
-            "skip_same_folder_prompt": bool(self.skip_same_folder_prompt.get()),
-            "rename_kept_enabled": bool(self.rename_kept_enabled.get()),
-            "show_keep_full_paths": bool(self.show_keep_full_paths.get()),
-            "name_prefix": self.prefix_var.get().strip(),
-            "include_subfolders": bool(self.include_subfolders.get()),
+            "days": int(self._advanced_settings.get("days", self.days_var.get())),
+            "use_hash": bool(self._advanced_settings.get("use_hash", self.use_hash.get())),
+            "use_size": bool(self._advanced_settings.get("use_size", self.use_size.get())),
+            "use_name": bool(self._advanced_settings.get("use_name", self.use_name.get())),
+            "use_mtime": bool(self._advanced_settings.get("use_mtime", self.use_mtime.get())),
+            "hash_limit_enabled": bool(self._advanced_settings.get("hash_limit_enabled", self.hash_limit_enabled.get())),
+            "hash_max_mb": int(self._advanced_settings.get("hash_max_mb", self.hash_max_mb.get())),
+            "skip_same_folder_prompt": bool(
+                self._advanced_settings.get("skip_same_folder_prompt", self.skip_same_folder_prompt.get())
+            ),
+            "rename_kept_enabled": bool(
+                self._advanced_settings.get("rename_kept_enabled", self.rename_kept_enabled.get())
+            ),
+            "show_keep_full_paths": bool(
+                self._advanced_settings.get("show_keep_full_paths", self.show_keep_full_paths.get())
+            ),
+            "name_prefix": str(self._advanced_settings.get("name_prefix", self.prefix_var.get()) or "").strip(),
+            "include_subfolders": bool(
+                self._advanced_settings.get("include_subfolders", self.include_subfolders.get())
+            ),
             "recent_folders": list(self.folder_history),
+            "view_mode": self.view_mode.get(),
         }
         try:
             SETTINGS_PATH.write_text(json.dumps(opts, indent=2), encoding="utf-8")
@@ -665,6 +809,9 @@ class DuplicateCleanerUI:
         if self._scanning:
             return
 
+        if self.view_mode.get() == "simplified":
+            self._apply_simplified_defaults()
+
         folder = Path(self.folder_var.get()).expanduser()
         days = max(self.days_var.get(), 0)
 
@@ -677,6 +824,15 @@ class DuplicateCleanerUI:
             return
 
         self._scanning = True
+        self._last_scan_mode = self.view_mode.get()
+        self._last_scan_settings = {
+            "prefix": self.prefix_var.get().strip(),
+            "include_subfolders": bool(self.include_subfolders.get()),
+            "use_hash": bool(self.use_hash.get()),
+            "use_size": bool(self.use_size.get()),
+            "use_name": bool(self.use_name.get()),
+            "use_mtime": bool(self.use_mtime.get()),
+        }
         self.scan_btn.configure(state="disabled")
         self.delete_btn.configure(state="disabled")
         for item in self.results_tree.get_children():
@@ -744,6 +900,12 @@ class DuplicateCleanerUI:
         self._last_days = days
         self._remember_folder(folder)
         self._close_folder_dropdown()
+        if self.view_mode.get() == "simplified":
+            self._render_simplified_summary(days)
+            self._finish_scan()
+            if self.duplicates:
+                self._simplified_confirm_and_delete()
+            return
         self._render_results(folder, days)
         if self.duplicates:
             self.delete_btn.configure(state="normal")
@@ -754,11 +916,7 @@ class DuplicateCleanerUI:
         self.scan_btn.configure(state="normal")
         self._stop_scan_spinner()
 
-    def _render_results(self, folder: Path, days: int) -> None:
-        for item in self.results_tree.get_children():
-            self.results_tree.delete(item)
-        self._item_meta.clear()
-
+    def _build_summary_text(self, days: int) -> Tuple[str, str]:
         scan_time_text = ""
         if self._last_scan_seconds is not None:
             if self._last_scan_seconds < 1:
@@ -768,46 +926,65 @@ class DuplicateCleanerUI:
             else:
                 scan_time_text = f" Time: {self._last_scan_seconds/60:.1f} min."
 
-        if not self.duplicates:
-            scope_text = "all time" if days <= 0 else f"last {days} day(s)"
-            summary = f"No duplicates found ({scope_text})."
-            prefix_text = self.prefix_var.get().strip()
-            if prefix_text:
-                summary += f" Prefix: '{prefix_text}'."
-            if not self.include_subfolders.get():
-                summary += " Subfolders: off."
-            summary += scan_time_text
-            notice_parts: List[str] = []
-            if self._last_scan_skipped:
-                notice_parts.append(f"Skipped {self._last_scan_skipped} file(s) due to scan errors.")
-            self.notice_var.set(" ".join(notice_parts))
-            self.summary_var.set(summary)
-            self.delete_btn.configure(state="disabled")
-            self._set_actions_enabled(False)
-            self._set_filter_enabled(False)
-            self._update_selection_status()
-            return
-
-        total_dupes = sum(len(v) - 1 for v in self.duplicates.values())
         scope_text = "all time" if days <= 0 else f"last {days} day(s)"
-        summary = f"Found {len(self.duplicates)} duplicate group(s), {total_dupes} deletable file(s) ({scope_text})."
-        prefix_text = self.prefix_var.get().strip()
+        prefix_text = str(self._last_scan_settings.get("prefix", self.prefix_var.get().strip()))
+        include_subfolders = bool(self._last_scan_settings.get("include_subfolders", self.include_subfolders.get()))
+
+        if not self.duplicates:
+            summary = f"No duplicates found ({scope_text})."
+        else:
+            total_dupes = sum(len(v) - 1 for v in self.duplicates.values())
+            summary = f"Found {len(self.duplicates)} duplicate group(s), {total_dupes} deletable file(s) ({scope_text})."
+
         if prefix_text:
             summary += f" Prefix: '{prefix_text}'."
-        if not self.include_subfolders.get():
+        if not include_subfolders:
             summary += " Subfolders: off."
         summary += scan_time_text
+
         notice_parts: List[str] = []
         if self._last_hash_skipped:
-            fallback_checks = any([self.use_size.get(), self.use_name.get(), self.use_mtime.get()])
+            use_size = bool(self._last_scan_settings.get("use_size", self.use_size.get()))
+            use_name = bool(self._last_scan_settings.get("use_name", self.use_name.get()))
+            use_mtime = bool(self._last_scan_settings.get("use_mtime", self.use_mtime.get()))
+            fallback_checks = use_size or use_name or use_mtime
             if fallback_checks:
                 notice_parts.append("Hashing skipped for some large files; other checks were used.")
             else:
                 notice_parts.append("Hashing skipped for some large files; no other checks enabled.")
         if self._last_scan_skipped:
             notice_parts.append(f"Skipped {self._last_scan_skipped} file(s) due to scan errors.")
-        self.notice_var.set(" ".join(notice_parts))
+        if self.view_mode.get() == "advanced" and self._last_scan_mode == "simplified":
+            notice_parts.append("Results reflect simplified defaults; rescan to apply advanced settings.")
+        return summary, " ".join(notice_parts)
+
+    def _render_simplified_summary(self, days: int) -> None:
+        for item in self.results_tree.get_children():
+            self.results_tree.delete(item)
+        self._item_meta.clear()
+        summary, notice = self._build_summary_text(days)
         self.summary_var.set(summary)
+        self.notice_var.set(notice)
+        self.delete_btn.configure(state="disabled")
+        self._set_actions_enabled(False)
+        self._set_filter_enabled(False)
+        self._update_selection_status()
+
+    def _render_results(self, folder: Path, days: int) -> None:
+        for item in self.results_tree.get_children():
+            self.results_tree.delete(item)
+        self._item_meta.clear()
+
+        summary, notice = self._build_summary_text(days)
+        self.notice_var.set(notice)
+        self.summary_var.set(summary)
+        if not self.duplicates:
+            self.delete_btn.configure(state="disabled")
+            self._set_actions_enabled(False)
+            self._set_filter_enabled(False)
+            self._update_selection_status()
+            return
+        self.delete_btn.configure(state="normal")
         self._set_actions_enabled(True)
         self._set_filter_enabled(True)
 
@@ -849,6 +1026,63 @@ class DuplicateCleanerUI:
         if self._last_sort_column is not None:
             self._sort_tree(self._last_sort_column, direction=self._last_sort_direction, remember=False, toggle=False)
         self._update_selection_status()
+
+    def _collect_newest_keep_delete(self) -> Tuple[List[Path], List[Path]]:
+        to_delete: List[Path] = []
+        to_keep: List[Path] = []
+        for files in self.duplicates.values():
+            newest = max(files, key=lambda item: item[2])[0]
+            for path, _, _ in files:
+                if path == newest:
+                    to_keep.append(path)
+                else:
+                    to_delete.append(path)
+        return to_delete, to_keep
+
+    def _simplified_confirm_and_delete(self) -> None:
+        if not self.duplicates:
+            return
+        to_delete, to_keep = self._collect_newest_keep_delete()
+        if not to_delete:
+            return
+
+        total_size = sum(path.stat().st_size for path in to_delete if path.exists())
+        rename_note = ""
+        if self.rename_kept_enabled.get():
+            rename_note = "\nKept files will be renamed to name_YYYY-MM-DD_HH-MM-SS_###.ext."
+        message = (
+            f"Found {len(self.duplicates)} duplicate group(s) and {len(to_delete)} deletable file(s).\n"
+            f"Estimated space freed: ~{human_size(total_size)}.\n"
+            "The newest file in each group will be kept."
+            f"{rename_note}\n\n"
+            "Proceed?"
+        )
+        choice = self._modal_dialog(
+            "Confirm delete",
+            message,
+            [
+                ("Delete duplicates", "delete"),
+                ("Cancel", "cancel"),
+                ("Review in Advanced", "review"),
+            ],
+            default_index=1,
+        )
+        if choice == "review":
+            self.view_mode.set("advanced")
+            self._apply_view_mode()
+            return
+        if choice != "delete":
+            return
+
+        rename_report: List[Tuple[Path, Path]] = []
+        if self.rename_kept_enabled.get():
+            rename_report = self._rename_conflicting_kept_files(to_keep, to_delete)
+        delete_files(to_delete, on_error=self._error)
+        msg = f"Deleted {len(to_delete)} duplicate file(s)."
+        if rename_report:
+            msg += f"\nRenamed {len(rename_report)} kept file(s) to the timestamped pattern."
+        self._info("Done", msg)
+        self._scan()
 
     def _matches_filter(self, path: Path, needle: str) -> bool:
         text = needle.casefold()
@@ -1433,12 +1667,14 @@ class DuplicateCleanerUI:
         """Display a simple help dialog with usage tips and examples."""
         help_text = (
             "Delete Real Duplicates - Usage Guide\n\n"
-            "1) Pick a folder and how many days back to scan. Days=0 scans everything.\n"
-            "2) Choose duplicate checks. Hash+Size is safest; add Name/Modified time to tighten matches.\n"
-            "3) Optional: limit hashing to files under a size (large files fall back to other checks).\n"
-            "4) Scan. Review the groups listed in the output pane.\n"
-            "5) Delete duplicates. You choose which copy to keep per group unless the\n"
-            "   'Skip keep-choice dialog for same folder' toggle auto-selects the newest file.\n\n"
+            "1) Choose Simplified (quick clean) or Advanced (full controls).\n"
+            "2) Pick a folder and how many days back to scan. Days=0 scans everything.\n"
+            "3) Choose duplicate checks. Hash+Size is safest; add Name/Modified time to tighten matches.\n"
+            "4) Optional: limit hashing to files under a size (large files fall back to other checks).\n"
+            "5) Scan. Review the groups listed in the output pane (Advanced view).\n"
+            "6) Delete duplicates. Advanced lets you pick which copy to keep per group unless the\n"
+            "   'Skip keep-choice dialog for same folder' toggle auto-selects the newest file.\n"
+            "   Simplified mode auto-keeps the newest copy after a confirmation.\n\n"
             "What is content hash? It reads the entire file and computes a SHA-256 digest of its bytes.\n"
             "Using Hash + Size keeps accuracy the same as Hash alone but hashes fewer files (size filters\n"
             "out obvious non-matches first). Accuracy can drop if you enable the hash size cap, because\n"

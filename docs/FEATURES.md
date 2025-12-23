@@ -14,6 +14,12 @@
 - Status: Done
 - How to verify: Set Days to 0 vs 7, toggle Include subfolders, and set a name prefix, then compare results.
 
+### Simplified view mode
+- Description: A simplified view hides advanced controls, uses fixed defaults (hash-only, last 7 days, include subfolders, 500 MB hash cap), and auto-deletes duplicates after a confirmation while keeping the newest file; Review in Advanced shows the full table.
+- Where: `delete_real_duplicates.py`
+- Status: Done
+- How to verify: Switch to Simplified, scan a folder with duplicates, confirm the auto-delete, and try Review in Advanced to inspect results.
+
 ### Scan error resilience
 - Description: Unreadable files are skipped without failing the scan, and the summary reports how many were skipped.
 - Where: `delete_real_duplicates.py`
