@@ -639,3 +639,18 @@ Files touched:
 - `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
 Tests:
 - Not run.
+
+## 2025-12-23 (Release 1.6.6)
+Date: 2025-12-23
+Intent:
+- Bump release references and rebuild the Windows EXE after merging to main.
+Status: Done
+User-facing changes:
+- Updated README to point at the 1.6.6 executable and core features header.
+Internal changes:
+- Updated the PyInstaller spec name, built the 1.6.6 EXE, and archived the 1.6.5 artifact.
+Files touched:
+- `README.md`, `docs/FEATURES.md`, `delete_real_duplicates.spec`
+- `dist/delete_real_duplicates-1.6.6.exe`, `archive/delete_real_duplicates-1.6.5.exe`, `docs/PROJECT_LOG.md`
+Tests:
+- `python -m PyInstaller delete_real_duplicates.spec`
