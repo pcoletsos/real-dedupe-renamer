@@ -12,6 +12,7 @@ from typing import Dict, Iterable, List, Tuple
 try:
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
+    import tkinter.font as tkfont
 except ImportError as exc:  # pragma: no cover - tkinter is standard but allow clearer error.
     raise SystemExit("tkinter is required to run this tool.") from exc
 
@@ -253,6 +254,7 @@ class DuplicateCleanerUI:
         self._spinner_job: str | None = None
         self._actions_enabled = False
         self._selection_updating = False
+        self._message_wrap_width = 0
 
         self._build_menu()
         self._build_layout()
@@ -272,6 +274,9 @@ class DuplicateCleanerUI:
         frm.grid(row=0, column=0, sticky="nsew")
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
+        utility_btn_width = 14
+        primary_btn_width = 18
+        action_btn_width = 14
 
         # Folder chooser.
         ttk.Label(frm, text="Folder to scan:").grid(row=0, column=0, sticky="w")
@@ -281,9 +286,11 @@ class DuplicateCleanerUI:
         self.folder_combo.bind("<Down>", self._open_folder_dropdown)
         self.folder_combo.bind("<<ComboboxSelected>>", self._on_folder_selected)
         self.folder_combo.bind("<Escape>", self._close_folder_dropdown)
-        browse_btn = ttk.Button(frm, text="Browse...", command=self._browse_folder)
+        browse_btn = ttk.Button(frm, text="Browse...", command=self._browse_folder, width=utility_btn_width)
         browse_btn.grid(row=0, column=2, sticky="e")
-        clear_btn = ttk.Button(frm, text="Clear history", command=self._clear_folder_history, width=12)
+        clear_btn = ttk.Button(
+            frm, text="Clear history", command=self._clear_folder_history, width=utility_btn_width
+        )
         clear_btn.grid(row=0, column=3, sticky="e")
         frm.columnconfigure(1, weight=1)
 
@@ -310,13 +317,13 @@ class DuplicateCleanerUI:
             row=3, column=0, sticky="w", pady=(6, 0)
         )
         ttk.Entry(frm, textvariable=self.prefix_var, width=40).grid(
-            row=3, column=1, sticky="w", padx=(4, 0), pady=(6, 0)
+            row=3, column=1, sticky="ew", padx=(4, 0), pady=(6, 0)
         )
         ttk.Label(frm, text="Leave blank to scan all files.").grid(row=3, column=2, sticky="w", pady=(6, 0))
 
         # Duplicate criteria toggles.
         criteria = ttk.LabelFrame(frm, text="Duplicate checks", padding=(8, 6))
-        criteria.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 4))
+        criteria.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(8, 4))
         ttk.Checkbutton(criteria, text="Content hash (SHA-256)", variable=self.use_hash).grid(
             row=0, column=0, sticky="w", padx=(0, 10)
         )
@@ -355,58 +362,83 @@ class DuplicateCleanerUI:
 
         # Buttons.
         btn_frame = ttk.Frame(frm)
-        btn_frame.grid(row=7, column=0, columnspan=3, sticky="w", pady=(6, 4))
-        self.scan_btn = ttk.Button(btn_frame, text="Scan 🔍", command=self._scan, style="Primary.TButton", width=14)
+        btn_frame.grid(row=7, column=0, columnspan=3, sticky="w", pady=(4, 2))
+        self.scan_btn = ttk.Button(
+            btn_frame, text="Scan 🔍", command=self._scan, style="Primary.TButton", width=primary_btn_width
+        )
         self.scan_btn.grid(row=0, column=0, padx=(0, 10))
         self.delete_btn = ttk.Button(
-            btn_frame, text="Delete duplicates", command=self._delete, state="disabled", style="Danger.TButton", width=18
+            btn_frame,
+            text="Delete duplicates",
+            command=self._delete,
+            state="disabled",
+            style="Danger.TButton",
+            width=primary_btn_width,
         )
         self.delete_btn.grid(row=0, column=1, padx=(0, 4))
 
         # Notices and summary.
         self.notice_var = tk.StringVar(value="")
-        ttk.Label(frm, textvariable=self.notice_var, foreground="#b36200").grid(
-            row=8, column=0, columnspan=3, sticky="w", pady=(4, 0)
-        )
-
-        summary_frame = ttk.Frame(frm)
-        summary_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(2, 2))
-        summary_frame.columnconfigure(0, weight=1)
         self.summary_var = tk.StringVar(value="Scan results will appear here.")
-        ttk.Label(summary_frame, textvariable=self.summary_var, wraplength=900, justify="left").grid(
-            row=0, column=0, sticky="w"
+        message_frame = ttk.Frame(frm, padding=(8, 6))
+        message_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(4, 2))
+        message_frame.columnconfigure(0, weight=1)
+        message_frame.grid_propagate(False)
+        line_height = tkfont.nametofont("TkDefaultFont").metrics("linespace")
+        message_frame.configure(height=line_height * 3 + 12)
+        self.notice_label = ttk.Label(
+            message_frame, textvariable=self.notice_var, foreground="#b36200", justify="left"
         )
-        actions = ttk.Frame(summary_frame)
-        actions.grid(row=0, column=1, sticky="e")
+        self.notice_label.grid(row=0, column=0, sticky="w")
+        self.summary_label = ttk.Label(message_frame, textvariable=self.summary_var, justify="left")
+        self.summary_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
+        message_frame.bind("<Configure>", self._update_message_wrap)
+
+        actions_frame = ttk.Frame(frm)
+        actions_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(0, 4))
+        actions_frame.columnconfigure(0, weight=1)
         self.delete_selected_btn = ttk.Button(
-            actions,
+            actions_frame,
             text="Delete selected",
             command=self._delete_selected,
             state="disabled",
             style="Danger.TButton",
-            width=14,
+            width=action_btn_width,
         )
-        self.delete_selected_btn.grid(row=0, column=0, padx=(0, 4))
-        self.copy_btn = ttk.Button(actions, text="Copy report", command=self._copy_report, state="disabled")
-        self.copy_btn.grid(row=0, column=1, padx=(0, 4))
-        self.export_btn = ttk.Button(actions, text="Export CSV", command=self._export_csv, state="disabled")
-        self.export_btn.grid(row=0, column=2, padx=(0, 4))
-        self.collapse_btn = ttk.Button(actions, text="Collapse all", command=self._collapse_all, state="disabled")
-        self.collapse_btn.grid(row=0, column=3, padx=(0, 4))
-        self.expand_btn = ttk.Button(actions, text="Expand all", command=self._expand_all, state="disabled")
-        self.expand_btn.grid(row=0, column=4)
-        ttk.Label(actions, textvariable=self.selection_var).grid(row=1, column=0, columnspan=5, sticky="e", pady=(4, 0))
+        self.delete_selected_btn.grid(row=0, column=0, sticky="w", padx=(0, 10))
+        action_buttons = ttk.Frame(actions_frame)
+        action_buttons.grid(row=0, column=1, sticky="e")
+        self.copy_btn = ttk.Button(
+            action_buttons, text="Copy report", command=self._copy_report, state="disabled", width=action_btn_width
+        )
+        self.copy_btn.grid(row=0, column=0, padx=(0, 4))
+        self.export_btn = ttk.Button(
+            action_buttons, text="Export CSV", command=self._export_csv, state="disabled", width=action_btn_width
+        )
+        self.export_btn.grid(row=0, column=1, padx=(0, 4))
+        self.collapse_btn = ttk.Button(
+            action_buttons, text="Collapse all", command=self._collapse_all, state="disabled", width=action_btn_width
+        )
+        self.collapse_btn.grid(row=0, column=2, padx=(0, 4))
+        self.expand_btn = ttk.Button(
+            action_buttons, text="Expand all", command=self._expand_all, state="disabled", width=action_btn_width
+        )
+        self.expand_btn.grid(row=0, column=3)
+        ttk.Label(actions_frame, textvariable=self.selection_var).grid(
+            row=1, column=0, columnspan=2, sticky="e", pady=(2, 0)
+        )
 
         # Filter.
         filter_frame = ttk.Frame(frm)
         filter_frame.grid(row=10, column=0, columnspan=3, sticky="ew", pady=(0, 4))
+        filter_frame.columnconfigure(1, weight=1)
         ttk.Label(filter_frame, text="Filter (name or folder contains):").grid(row=0, column=0, sticky="w")
         self.filter_entry = ttk.Entry(filter_frame, textvariable=self.filter_var, width=40, state="disabled")
-        self.filter_entry.grid(row=0, column=1, sticky="w", padx=(4, 0))
+        self.filter_entry.grid(row=0, column=1, sticky="ew", padx=(4, 0))
         self.filter_var.trace_add("write", lambda *_: self._apply_filter())
 
         tree_frame = ttk.Frame(frm)
-        tree_frame.grid(row=11, column=0, columnspan=3, sticky="nsew", pady=(0, 6))
+        tree_frame.grid(row=11, column=0, columnspan=3, sticky="nsew", pady=(0, 4))
         frm.rowconfigure(11, weight=1)
         tree_frame.rowconfigure(0, weight=1)
         tree_frame.columnconfigure(0, weight=1)
@@ -435,6 +467,16 @@ class DuplicateCleanerUI:
         self.results_tree.bind("<Double-1>", self._on_tree_double_click)
         self.results_tree.bind("<Button-3>", self._on_tree_right_click)
         self.results_tree.bind("<<TreeviewSelect>>", self._on_tree_selection_change)
+
+    def _update_message_wrap(self, event: tk.Event) -> None:
+        if event.width <= 1:
+            return
+        wrap = max(1, event.width - 16)
+        if wrap == self._message_wrap_width:
+            return
+        self._message_wrap_width = wrap
+        self.notice_label.configure(wraplength=wrap)
+        self.summary_label.configure(wraplength=wrap)
 
     def _load_settings(self) -> None:
         """Load saved settings from disk if present."""
@@ -703,12 +745,17 @@ class DuplicateCleanerUI:
         self._item_meta.clear()
 
         if not self.duplicates:
-            summary = f"No duplicates found in {folder} (last {days} day(s))."
+            scope_text = "all time" if days <= 0 else f"last {days} day(s)"
+            summary = f"No duplicates found ({scope_text})."
+            prefix_text = self.prefix_var.get().strip()
+            if prefix_text:
+                summary += f" Prefix: '{prefix_text}'."
+            if not self.include_subfolders.get():
+                summary += " Subfolders: off."
+            notice_parts: List[str] = []
             if self._last_scan_skipped:
-                summary += f" Skipped {self._last_scan_skipped} file(s) due to scan errors."
-                self.notice_var.set("Some files could not be scanned; see summary.")
-            else:
-                self.notice_var.set("")
+                notice_parts.append(f"Skipped {self._last_scan_skipped} file(s) due to scan errors.")
+            self.notice_var.set(" ".join(notice_parts))
             self.summary_var.set(summary)
             self.delete_btn.configure(state="disabled")
             self._set_actions_enabled(False)
@@ -717,40 +764,22 @@ class DuplicateCleanerUI:
             return
 
         total_dupes = sum(len(v) - 1 for v in self.duplicates.values())
-        summary = (
-            f"Found {len(self.duplicates)} duplicate group(s) covering {total_dupes} "
-            f"deletable file(s) in {folder} ({'all time' if days <= 0 else f'last {days} day(s)'})."
-        )
+        scope_text = "all time" if days <= 0 else f"last {days} day(s)"
+        summary = f"Found {len(self.duplicates)} duplicate group(s), {total_dupes} deletable file(s) ({scope_text})."
         prefix_text = self.prefix_var.get().strip()
         if prefix_text:
-            summary += f" Name prefix filter: '{prefix_text}'."
+            summary += f" Prefix: '{prefix_text}'."
         if not self.include_subfolders.get():
             summary += " Subfolders: off."
-        if self._last_scan_seconds is not None:
-            if self._last_scan_seconds < 1:
-                summary += f" Scan time: {self._last_scan_seconds:.2f} s."
-            elif self._last_scan_seconds < 60:
-                summary += f" Scan time: {self._last_scan_seconds:.1f} s."
-            else:
-                summary += f" Scan time: {self._last_scan_seconds/60:.1f} min."
         notice_parts: List[str] = []
         if self._last_hash_skipped:
             fallback_checks = any([self.use_size.get(), self.use_name.get(), self.use_mtime.get()])
             if fallback_checks:
-                summary += (
-                    f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit;"
-                    " compared them using other selected checks."
-                )
                 notice_parts.append("Hashing skipped for some large files; other checks were used.")
             else:
-                summary += (
-                    f" Note: skipped hashing {self._last_hash_skipped} large file(s) due to the hash size limit;"
-                    " no other checks were enabled for them."
-                )
                 notice_parts.append("Hashing skipped for some large files; no other checks enabled.")
         if self._last_scan_skipped:
-            summary += f" Note: skipped {self._last_scan_skipped} file(s) due to scan errors."
-            notice_parts.append("Some files could not be scanned; see summary.")
+            notice_parts.append(f"Skipped {self._last_scan_skipped} file(s) due to scan errors.")
         self.notice_var.set(" ".join(notice_parts))
         self.summary_var.set(summary)
         self._set_actions_enabled(True)

@@ -425,3 +425,28 @@ Files touched:
 - `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
 Tests:
 - Not run.
+
+## 2025-12-23 (Start - UI layout audit + optimization)
+Date: 2025-12-23
+Intent:
+- Audit the main window layout for alignment, consistent button sizing, and a stable message area for long summaries.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - UI layout audit + optimization)
+Date: 2025-12-23
+Intent:
+- Audit the main window layout for alignment, consistent button sizing, and a stable message area for long summaries.
+Status: Done
+User-facing changes:
+- Standardized button widths, added a fixed-height status area with wrapped summary/notice text, and tightened spacing in the main window.
+Internal changes:
+- Summary text shortened to avoid overly long messages; message area now updates wrap length on resize.
+Files touched:
+- `delete_real_duplicates.py`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
