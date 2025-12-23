@@ -6,9 +6,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('assets/help_icon_12.png', 'assets'),
-        ('assets/help_icon_14.png', 'assets'),
-        ('assets/help_icon_16.png', 'assets'),
+        ('assets/help-circle-outline.svg', 'assets'),
     ],
     hiddenimports=[],
     hookspath=[],

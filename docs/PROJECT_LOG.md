@@ -1024,3 +1024,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.8.exe`, `archive/delete_real_duplicates-1.7.7.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - SVG help icon)
+Date: 2025-12-23
+Intent:
+- Use the provided SVG help icon for rendering the top-right help affordance.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`, `delete_real_duplicates.spec`, `assets/help-circle-outline.svg`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - SVG help icon)
+Date: 2025-12-23
+Intent:
+- Use the provided SVG help icon for rendering the top-right help affordance.
+Status: Done
+User-facing changes:
+- Help icon now matches the provided SVG styling.
+Internal changes:
+- Replaced PNG assets with an SVG-based canvas icon and bundled the SVG for sizing.
+Files touched:
+- `delete_real_duplicates.py`, `delete_real_duplicates.spec`, `assets/help-circle-outline.svg`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

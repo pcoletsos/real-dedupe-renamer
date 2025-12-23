@@ -7,6 +7,7 @@ import threading
 import csv
 import json
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
@@ -39,6 +40,19 @@ def _resource_path(relative: str) -> Path:
     if getattr(sys, "_MEIPASS", None):
         return Path(sys._MEIPASS) / relative  # type: ignore[attr-defined]
     return Path(__file__).resolve().parent / relative
+
+
+def _load_help_icon_size(default: int = 14) -> int:
+    path = _resource_path("assets/help-circle-outline.svg")
+    try:
+        tree = ET.parse(path)
+        root = tree.getroot()
+        width = root.get("width")
+        if width and width.isdigit():
+            return int(width)
+    except Exception:
+        pass
+    return default
 
 
 def default_downloads_folder() -> Path:
@@ -335,19 +349,8 @@ class DuplicateCleanerUI:
             variable=self.view_mode,
             command=self._on_view_change,
         ).grid(row=0, column=2, sticky="w", padx=(6, 0))
-        self.help_label = ttk.Label(frm, cursor="hand2", padding=(2, 0))
-        self._help_icon = None
-        try:
-            icon_path = _resource_path("assets/help_icon_14.png")
-            if icon_path.exists():
-                self._help_icon = tk.PhotoImage(file=str(icon_path))
-                self.help_label.configure(image=self._help_icon)
-            else:
-                self.help_label.configure(text="?")
-        except Exception:
-            self.help_label.configure(text="?")
-        self.help_label.grid(row=0, column=2, sticky="e", pady=(0, 4))
-        self.help_label.bind("<Button-1>", lambda _event: self._show_help_menu())
+        self.help_widget = self._build_help_icon(frm)
+        self.help_widget.grid(row=0, column=2, sticky="e", pady=(0, 4))
 
         # Folder chooser.
         ttk.Label(frm, text="Folder to scan:").grid(row=1, column=0, sticky="w")
@@ -559,9 +562,9 @@ class DuplicateCleanerUI:
         menu = tk.Menu(self.root, tearoff=False)
         menu.add_command(label="How to use", command=self._show_help)
         menu.add_command(label="Optional checks", command=self._show_optional_checks)
-        if hasattr(self, "help_label"):
-            x = self.help_label.winfo_rootx()
-            y = self.help_label.winfo_rooty() + self.help_label.winfo_height()
+        if hasattr(self, "help_widget"):
+            x = self.help_widget.winfo_rootx()
+            y = self.help_widget.winfo_rooty() + self.help_widget.winfo_height()
         else:
             x = self.root.winfo_rootx() + 40
             y = self.root.winfo_rooty() + 40
@@ -569,6 +572,54 @@ class DuplicateCleanerUI:
             menu.tk_popup(x, y)
         finally:
             menu.grab_release()
+
+    def _build_help_icon(self, parent: tk.Widget) -> tk.Canvas:
+        size = _load_help_icon_size(14)
+        bg = self.style.lookup("TFrame", "background") or self.root.cget("background")
+        fg = self.style.lookup("TLabel", "foreground") or "#1f1f1f"
+        canvas = tk.Canvas(parent, width=size, height=size, bg=bg, highlightthickness=0, bd=0, cursor="hand2")
+
+        scale = size / 24.0
+        stroke = max(1, int(round(2 * scale)))
+        pad = 2 * scale
+
+        canvas.create_oval(pad, pad, size - pad, size - pad, outline=fg, width=stroke)
+
+        points = [
+            9, 9,
+            9, 6,
+            15, 6,
+            15, 9,
+            15, 10.5,
+            12, 12,
+            12, 14,
+        ]
+        scaled = []
+        for value in points:
+            scaled.append(value * scale)
+        canvas.create_line(
+            *scaled,
+            fill=fg,
+            width=stroke,
+            capstyle="round",
+            joinstyle="round",
+            smooth=True,
+            splinesteps=12,
+        )
+
+        dot_r = max(1, int(round(stroke * 0.6)))
+        dot_cx = 12 * scale
+        dot_cy = 17 * scale
+        canvas.create_oval(
+            dot_cx - dot_r,
+            dot_cy - dot_r,
+            dot_cx + dot_r,
+            dot_cy + dot_r,
+            fill=fg,
+            outline=fg,
+        )
+        canvas.bind("<Button-1>", lambda _event: self._show_help_menu())
+        return canvas
 
     def _on_view_change(self) -> None:
         self._apply_view_mode()
