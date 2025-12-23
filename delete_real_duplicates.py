@@ -280,18 +280,20 @@ class DuplicateCleanerUI:
 
         # Folder chooser.
         ttk.Label(frm, text="Folder to scan:").grid(row=0, column=0, sticky="w")
-        self.folder_combo = ttk.Combobox(frm, textvariable=self.folder_var, width=60, values=self.folder_history)
-        self.folder_combo.grid(row=0, column=1, sticky="ew", padx=(4, 4))
+        self.folder_combo = ttk.Combobox(frm, textvariable=self.folder_var, width=48, values=self.folder_history)
+        self.folder_combo.grid(row=0, column=1, sticky="ew", padx=(4, 8))
         self.folder_combo.bind("<Button-1>", self._open_folder_dropdown)
         self.folder_combo.bind("<Down>", self._open_folder_dropdown)
         self.folder_combo.bind("<<ComboboxSelected>>", self._on_folder_selected)
         self.folder_combo.bind("<Escape>", self._close_folder_dropdown)
-        browse_btn = ttk.Button(frm, text="Browse...", command=self._browse_folder, width=utility_btn_width)
-        browse_btn.grid(row=0, column=2, sticky="e")
+        folder_actions = ttk.Frame(frm)
+        folder_actions.grid(row=0, column=2, sticky="e")
+        browse_btn = ttk.Button(folder_actions, text="Browse...", command=self._browse_folder, width=utility_btn_width)
+        browse_btn.grid(row=0, column=0, padx=(0, 6))
         clear_btn = ttk.Button(
-            frm, text="Clear history", command=self._clear_folder_history, width=utility_btn_width
+            folder_actions, text="Clear history", command=self._clear_folder_history, width=utility_btn_width
         )
-        clear_btn.grid(row=0, column=3, sticky="e")
+        clear_btn.grid(row=0, column=1)
         frm.columnconfigure(1, weight=1)
 
         # Days back.
