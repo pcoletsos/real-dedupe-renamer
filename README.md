@@ -27,7 +27,7 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
 - Progress: Scan button shows animated progress during scans.
 - Action cues: delete buttons are tinted red, and Scan uses a magnifying glass with a green tint.
 - Settings persistence: last folder, days, criteria, hash limit, same-folder toggle, and keep-dialog display preference saved to `.duplicate_cleaner_settings.json`.
-- Help menu: “How to use” and “Optional checks” explain hashing, criteria, and tips.
+- Help: use the Help button to access “How to use” and “Optional checks”.
 - Dialogs center on the app window for confirmations/errors/info.
 
 ## UI guide
@@ -54,6 +54,7 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
    - "Keep newest in all groups" shortcut speeds selection.
    - Confirmation shows file count and estimated space freed.
    - Deletions go to Recycle Bin when `send2trash` is available; otherwise, files are removed directly.
+9) **Help:** click Help to open "How to use" and "Optional checks" without a menu bar.
 9) **Reports/Exports:**
    - "Copy report" puts a text summary on the clipboard.
    - "Export CSV" saves file, folder, modified, size (bytes/human), and criteria.

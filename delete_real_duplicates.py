@@ -288,19 +288,13 @@ class DuplicateCleanerUI:
         self._last_scan_mode: str | None = None
         self._last_scan_settings: Dict[str, object] = {}
 
-        self._build_menu()
         self._build_layout()
         self._load_settings()
         self._apply_view_mode()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_menu(self) -> None:
-        menubar = tk.Menu(self.root)
-        help_menu = tk.Menu(menubar, tearoff=False)
-        help_menu.add_command(label="How to use", command=self._show_help)
-        help_menu.add_command(label="Optional checks", command=self._show_optional_checks)
-        menubar.add_cascade(label="Help", menu=help_menu)
-        self.root.config(menu=menubar)
+        pass
 
     def _build_layout(self) -> None:
         frm = ttk.Frame(self.root, padding=12)
@@ -334,6 +328,9 @@ class DuplicateCleanerUI:
             variable=self.view_mode,
             command=self._on_view_change,
         ).grid(row=0, column=2, sticky="w", padx=(6, 0))
+        view_frame.columnconfigure(3, weight=1)
+        self.help_btn = ttk.Button(view_frame, text="Help", command=self._show_help_menu, width=8)
+        self.help_btn.grid(row=0, column=4, sticky="e")
 
         # Folder chooser.
         ttk.Label(frm, text="Folder to scan:").grid(row=1, column=0, sticky="w")
@@ -540,6 +537,21 @@ class DuplicateCleanerUI:
         self.results_tree.bind("<Button-3>", self._on_tree_right_click)
         self.results_tree.bind("<<TreeviewSelect>>", self._on_tree_selection_change)
         register_advanced(self.tree_frame)
+
+    def _show_help_menu(self) -> None:
+        menu = tk.Menu(self.root, tearoff=False)
+        menu.add_command(label="How to use", command=self._show_help)
+        menu.add_command(label="Optional checks", command=self._show_optional_checks)
+        if hasattr(self, "help_btn"):
+            x = self.help_btn.winfo_rootx()
+            y = self.help_btn.winfo_rooty() + self.help_btn.winfo_height()
+        else:
+            x = self.root.winfo_rootx() + 40
+            y = self.root.winfo_rooty() + 40
+        try:
+            menu.tk_popup(x, y)
+        finally:
+            menu.grab_release()
 
     def _on_view_change(self) -> None:
         self._apply_view_mode()

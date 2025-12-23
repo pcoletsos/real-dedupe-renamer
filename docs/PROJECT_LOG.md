@@ -819,3 +819,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.3.exe`, `archive/delete_real_duplicates-1.7.2.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Help access without menu bar)
+Date: 2025-12-23
+Intent:
+- Provide access to Help without the menubar to reduce wasted vertical space.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `README.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Help access without menu bar)
+Date: 2025-12-23
+Intent:
+- Provide access to Help without the menubar to reduce wasted vertical space.
+Status: Done
+User-facing changes:
+- Added a Help button that opens How to use and Optional checks without a menu bar.
+Internal changes:
+- Removed the menubar wiring and added a help popup menu near the View toggle.
+Files touched:
+- `delete_real_duplicates.py`, `README.md`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
