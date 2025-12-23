@@ -288,3 +288,18 @@ Files touched:
 - `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
 Tests:
 - Not run.
+
+## 2025-12-23 (Release 1.4.5)
+Date: 2025-12-23
+Intent:
+- Bump release references and rebuild the Windows EXE after merging to main.
+Status: Done
+User-facing changes:
+- Updated README to point at the 1.4.5 executable and core features header.
+Internal changes:
+- Updated the PyInstaller spec name, built the 1.4.5 EXE, and archived the 1.4.4 artifact.
+Files touched:
+- `README.md`, `docs/FEATURES.md`, `delete_real_duplicates.spec`
+- `dist/delete_real_duplicates-1.4.5.exe`, `archive/delete_real_duplicates-1.4.4.exe`, `docs/PROJECT_LOG.md`
+Tests:
+- `python -m PyInstaller delete_real_duplicates.spec`
