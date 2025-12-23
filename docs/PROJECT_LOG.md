@@ -696,3 +696,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.0.exe`, `archive/delete_real_duplicates-1.6.6.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Confirm delete cancel placement)
+Date: 2025-12-23
+Intent:
+- Move the confirm-delete Cancel button to the bottom-left for clearer safe action placement.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Confirm delete cancel placement)
+Date: 2025-12-23
+Intent:
+- Move the confirm-delete Cancel button to the bottom-left for clearer safe action placement.
+Status: Done
+User-facing changes:
+- Confirm delete dialogs now show Cancel on the left to emphasize the safe action.
+Internal changes:
+- Updated modal dialog button layout to align Cancel left and destructive actions right.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

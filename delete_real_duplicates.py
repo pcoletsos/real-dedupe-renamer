@@ -1323,6 +1323,10 @@ class DuplicateCleanerUI:
 
         btns = ttk.Frame(body)
         btns.pack(fill="x")
+        left_btns = ttk.Frame(btns)
+        left_btns.pack(side="left")
+        right_btns = ttk.Frame(btns)
+        right_btns.pack(side="right")
         result: object = None
 
         def on_choose(val: object) -> None:
@@ -1337,7 +1341,10 @@ class DuplicateCleanerUI:
                 btn = ttk.Button(btns, text=label, command=lambda v=val: on_choose(v), style=style_name)
             else:
                 btn = ttk.Button(btns, text=label, command=lambda v=val: on_choose(v))
-            btn.pack(side="right", padx=(6 if idx else 0, 0))
+            if label.strip().casefold() == "cancel":
+                btn.pack(in_=left_btns, side="left", padx=(0, 6 if idx else 0))
+            else:
+                btn.pack(in_=right_btns, side="right", padx=(6 if idx else 0, 0))
             button_refs.append((btn, val))
 
         if default_index is not None and 0 <= default_index < len(button_refs):
