@@ -1046,17 +1046,52 @@ class DuplicateCleanerUI:
         container = ttk.Frame(top, padding=10)
         container.pack(fill="both", expand=True)
 
-        keep_vars: List[Tuple[tk.IntVar, List[FileEntry], Tuple[Tuple[str, object], ...]]] = []
+        style = ttk.Style(top)
+        style.configure("KeepStatus.TLabel", foreground="#1f7a1f")
+        style.configure("DeleteStatus.TLabel", foreground="#8b1d1d")
+
+        legend = ttk.Label(container, text="Legend: KEEP = selected file; DELETE = will be removed.")
+        legend.pack(anchor="w", pady=(0, 6))
+
+        def set_status_labels(var: tk.IntVar, labels: List[ttk.Label]) -> None:
+            selected_idx = var.get()
+            for idx, label in enumerate(labels):
+                if idx == selected_idx:
+                    label.configure(text="KEEP", style="KeepStatus.TLabel")
+                else:
+                    label.configure(text="DELETE", style="DeleteStatus.TLabel")
+
+        keep_vars: List[
+            Tuple[tk.IntVar, List[FileEntry], Tuple[Tuple[str, object], ...], List[ttk.Label]]
+        ] = []
         for group_idx, (key, files) in enumerate(sorted(groups.items())):
             lf = ttk.LabelFrame(container, text=_describe_key(key), padding=(8, 6))
             lf.pack(fill="both", expand=True, padx=4, pady=4)
             sorted_files = sorted(files, key=lambda item: item[2], reverse=True)
             var = tk.IntVar(value=0)
+            table = ttk.Frame(lf)
+            table.pack(fill="both", expand=True)
+            table.columnconfigure(1, weight=1)
+            ttk.Label(table, text="Status").grid(row=0, column=0, sticky="w", padx=(0, 8))
+            ttk.Label(table, text="File").grid(row=0, column=1, sticky="w")
+            status_labels: List[ttk.Label] = []
             for idx, (path, size, mtime) in enumerate(sorted_files):
                 ts = _dt.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
                 text = f"{path}  ({human_size(size)}, modified {ts})"
-                ttk.Radiobutton(lf, text=text, variable=var, value=idx).pack(anchor="w", pady=(0, 2))
-            keep_vars.append((var, sorted_files, key))
+                status_label = ttk.Label(
+                    table, text="DELETE", width=7, anchor="w", style="DeleteStatus.TLabel"
+                )
+                status_label.grid(row=idx + 1, column=0, sticky="w", padx=(0, 8), pady=(0, 2))
+                status_labels.append(status_label)
+                ttk.Radiobutton(
+                    table,
+                    text=text,
+                    variable=var,
+                    value=idx,
+                    command=lambda v=var, labels=status_labels: set_status_labels(v, labels),
+                ).grid(row=idx + 1, column=1, sticky="w", pady=(0, 2))
+            set_status_labels(var, status_labels)
+            keep_vars.append((var, sorted_files, key, status_labels))
 
         btns = ttk.Frame(container)
         btns.pack(fill="x", pady=(6, 0))
@@ -1065,7 +1100,7 @@ class DuplicateCleanerUI:
         def on_ok() -> None:
             nonlocal result
             selection: Dict[Tuple[Tuple[str, object], ...], Path] = {}
-            for var, files, key in keep_vars:
+            for var, files, key, _ in keep_vars:
                 idx = var.get()
                 if idx < 0 or idx >= len(files):
                     messagebox.showerror("Selection needed", "Please pick a file to keep for every group.", parent=top)
@@ -1078,8 +1113,9 @@ class DuplicateCleanerUI:
             top.destroy()
 
         def keep_newest_all() -> None:
-            for var, _, _ in keep_vars:
+            for var, _, _, labels in keep_vars:
                 var.set(0)
+                set_status_labels(var, labels)
 
         ttk.Button(btns, text="Cancel", command=on_cancel).pack(side="right", padx=(4, 0))
         ttk.Button(btns, text="OK", command=on_ok).pack(side="right")

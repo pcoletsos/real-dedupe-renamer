@@ -43,7 +43,7 @@
 ## Deletion and Safety
 
 ### Keep-choice workflow with same-folder auto-keep
-- Description: Prompts for a keep choice per group with a "Keep newest in all groups" shortcut; optionally auto-keeps newest when all duplicates share a folder.
+- Description: Prompts for a keep choice per group with a "Keep newest in all groups" shortcut and a per-row KEEP/DELETE status column with legend; optionally auto-keeps newest when all duplicates share a folder.
 - Where: `delete_real_duplicates.py`
 - Status: Done
 - How to verify: Scan duplicates, click Delete duplicates, and test the dialog and same-folder toggle.

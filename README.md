@@ -18,6 +18,7 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
 - Duplicate criteria toggles: content hash (SHA-256), size, file name, modified time.
 - Hash size cap: optionally skip hashing very large files while still comparing them with other checks.
 - Same-folder fast path: if all copies are in one folder, auto-keep the newest and skip the keep-choice dialog.
+- Keep-choice dialog: per-row KEEP/DELETE status column with a legend to clarify selections.
 - Results table: sortable columns, collapsible groups, filter by name/folder, double-click to open a file’s folder, right-click to copy a row/group.
 - Reports/exports: copy the full report to clipboard or export CSV.
 - UI gating: copy/export/collapse/expand and filter enable only when results exist.
@@ -40,6 +41,7 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
    - Right-click a row/group to copy it.
 7) **Delete duplicates:**
    - Keep-choice dialog per group unless auto-skipped by same-folder mode.
+   - Status column shows KEEP/DELETE per row; the legend explains how selections map to deletions.
    - “Keep newest in all groups” shortcut speeds selection.
    - Confirmation shows file count and estimated space freed.
    - Deletions go to Recycle Bin when `send2trash` is available; otherwise, files are removed directly.

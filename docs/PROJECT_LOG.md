@@ -263,3 +263,28 @@ Files touched:
 - `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
 Tests:
 - Not run.
+
+## 2025-12-23 (Start - Visual keep/delete indicators)
+Date: 2025-12-23
+Intent:
+- Add a status column and legend to the keep-choice dialog to clarify keep vs delete.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Visual keep/delete indicators)
+Date: 2025-12-23
+Intent:
+- Add a status column and legend to the keep-choice dialog to clarify keep vs delete.
+Status: Done
+User-facing changes:
+- Keep-choice dialog shows a KEEP/DELETE status column and legend synced to the selection.
+Internal changes:
+- Dialog layout now uses a two-column grid per group to display status labels alongside radio choices.
+Files touched:
+- `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
