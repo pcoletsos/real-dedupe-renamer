@@ -465,3 +465,28 @@ Files touched:
 - `dist/delete_real_duplicates-1.6.1.exe`, `archive/delete_real_duplicates-1.6.0.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - UI layout audit follow-up)
+Date: 2025-12-23
+Intent:
+- Improve the main window status area, restore scan time in the summary, and remove the Scan emoji.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - UI layout audit follow-up)
+Date: 2025-12-23
+Intent:
+- Improve the main window status area, restore scan time in the summary, and remove the Scan emoji.
+Status: Done
+User-facing changes:
+- Status area is now a labeled panel with wrapped text, scan time is restored, and Scan no longer uses emoji.
+Internal changes:
+- Repositioned the selection count into the action row to reduce dead space.
+Files touched:
+- `delete_real_duplicates.py`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

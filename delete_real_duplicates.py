@@ -364,7 +364,7 @@ class DuplicateCleanerUI:
         btn_frame = ttk.Frame(frm)
         btn_frame.grid(row=7, column=0, columnspan=3, sticky="w", pady=(4, 2))
         self.scan_btn = ttk.Button(
-            btn_frame, text="Scan 🔍", command=self._scan, style="Primary.TButton", width=primary_btn_width
+            btn_frame, text="Scan", command=self._scan, style="Primary.TButton", width=primary_btn_width
         )
         self.scan_btn.grid(row=0, column=0, padx=(0, 10))
         self.delete_btn = ttk.Button(
@@ -377,26 +377,26 @@ class DuplicateCleanerUI:
         )
         self.delete_btn.grid(row=0, column=1, padx=(0, 4))
 
-        # Notices and summary.
+        # Status.
         self.notice_var = tk.StringVar(value="")
         self.summary_var = tk.StringVar(value="Scan results will appear here.")
-        message_frame = ttk.Frame(frm, padding=(8, 6))
-        message_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(4, 2))
-        message_frame.columnconfigure(0, weight=1)
-        message_frame.grid_propagate(False)
+        status_frame = ttk.LabelFrame(frm, text="Status", padding=(8, 6))
+        status_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(4, 2))
+        status_frame.columnconfigure(0, weight=1)
+        status_frame.grid_propagate(False)
         line_height = tkfont.nametofont("TkDefaultFont").metrics("linespace")
-        message_frame.configure(height=line_height * 3 + 12)
+        status_frame.configure(height=line_height * 3 + 8)
+        self.summary_label = ttk.Label(status_frame, textvariable=self.summary_var, justify="left")
+        self.summary_label.grid(row=0, column=0, sticky="w")
         self.notice_label = ttk.Label(
-            message_frame, textvariable=self.notice_var, foreground="#b36200", justify="left"
+            status_frame, textvariable=self.notice_var, foreground="#b36200", justify="left"
         )
-        self.notice_label.grid(row=0, column=0, sticky="w")
-        self.summary_label = ttk.Label(message_frame, textvariable=self.summary_var, justify="left")
-        self.summary_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
-        message_frame.bind("<Configure>", self._update_message_wrap)
+        self.notice_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
+        status_frame.bind("<Configure>", self._update_message_wrap)
 
         actions_frame = ttk.Frame(frm)
-        actions_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(0, 4))
-        actions_frame.columnconfigure(0, weight=1)
+        actions_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(2, 4))
+        actions_frame.columnconfigure(1, weight=1)
         self.delete_selected_btn = ttk.Button(
             actions_frame,
             text="Delete selected",
@@ -406,8 +406,11 @@ class DuplicateCleanerUI:
             width=action_btn_width,
         )
         self.delete_selected_btn.grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ttk.Label(actions_frame, textvariable=self.selection_var).grid(
+            row=0, column=1, sticky="e", padx=(0, 10)
+        )
         action_buttons = ttk.Frame(actions_frame)
-        action_buttons.grid(row=0, column=1, sticky="e")
+        action_buttons.grid(row=0, column=2, sticky="e")
         self.copy_btn = ttk.Button(
             action_buttons, text="Copy report", command=self._copy_report, state="disabled", width=action_btn_width
         )
@@ -424,9 +427,6 @@ class DuplicateCleanerUI:
             action_buttons, text="Expand all", command=self._expand_all, state="disabled", width=action_btn_width
         )
         self.expand_btn.grid(row=0, column=3)
-        ttk.Label(actions_frame, textvariable=self.selection_var).grid(
-            row=1, column=0, columnspan=2, sticky="e", pady=(2, 0)
-        )
 
         # Filter.
         filter_frame = ttk.Frame(frm)
@@ -542,7 +542,7 @@ class DuplicateCleanerUI:
         self._spinner_idx = 0
 
         def tick() -> None:
-            self.scan_btn.configure(text=f"Scanning 🔍{dots[self._spinner_idx]}")
+            self.scan_btn.configure(text=f"Scanning{dots[self._spinner_idx]}")
             self._spinner_idx = (self._spinner_idx + 1) % len(dots)
             self._spinner_job = self.root.after(200, tick)
 
@@ -555,7 +555,7 @@ class DuplicateCleanerUI:
             except Exception:
                 pass
             self._spinner_job = None
-        self.scan_btn.configure(text="Scan 🔍")
+        self.scan_btn.configure(text="Scan")
         self._spinner_idx = 0
 
     def _remember_folder(self, folder: Path) -> None:
@@ -744,6 +744,15 @@ class DuplicateCleanerUI:
             self.results_tree.delete(item)
         self._item_meta.clear()
 
+        scan_time_text = ""
+        if self._last_scan_seconds is not None:
+            if self._last_scan_seconds < 1:
+                scan_time_text = f" Time: {self._last_scan_seconds:.2f} s."
+            elif self._last_scan_seconds < 60:
+                scan_time_text = f" Time: {self._last_scan_seconds:.1f} s."
+            else:
+                scan_time_text = f" Time: {self._last_scan_seconds/60:.1f} min."
+
         if not self.duplicates:
             scope_text = "all time" if days <= 0 else f"last {days} day(s)"
             summary = f"No duplicates found ({scope_text})."
@@ -752,6 +761,7 @@ class DuplicateCleanerUI:
                 summary += f" Prefix: '{prefix_text}'."
             if not self.include_subfolders.get():
                 summary += " Subfolders: off."
+            summary += scan_time_text
             notice_parts: List[str] = []
             if self._last_scan_skipped:
                 notice_parts.append(f"Skipped {self._last_scan_skipped} file(s) due to scan errors.")
@@ -771,6 +781,7 @@ class DuplicateCleanerUI:
             summary += f" Prefix: '{prefix_text}'."
         if not self.include_subfolders.get():
             summary += " Subfolders: off."
+        summary += scan_time_text
         notice_parts: List[str] = []
         if self._last_hash_skipped:
             fallback_checks = any([self.use_size.get(), self.use_name.get(), self.use_mtime.get()])
