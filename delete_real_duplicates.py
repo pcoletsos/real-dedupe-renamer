@@ -683,7 +683,7 @@ class DuplicateCleanerUI:
                 summary += f" Skipped {self._last_scan_skipped} file(s) due to scan errors."
                 self.notice_var.set("Some files could not be scanned; see summary.")
             else:
-            self.notice_var.set("")
+                self.notice_var.set("")
             self.summary_var.set(summary)
             self.delete_btn.configure(state="disabled")
             self._set_actions_enabled(False)
