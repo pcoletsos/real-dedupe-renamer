@@ -1065,3 +1065,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.9.exe`, `archive/delete_real_duplicates-1.7.8.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Help icon size/placement)
+Date: 2025-12-23
+Intent:
+- Increase the help icon to 16px and align it tighter to the top-right.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Help icon size/placement)
+Date: 2025-12-23
+Intent:
+- Increase the help icon to 16px and align it tighter to the top-right.
+Status: Done
+User-facing changes:
+- Help icon is now larger (16px) and sits closer to the top-right edge.
+Internal changes:
+- Render help icon at 16px and adjust grid padding for tighter placement.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

@@ -9,6 +9,7 @@
 Status tags: [Planned], [In Progress], [Paused], [Blocked], [Abandoned], [Done]
 
 ## Now
+- [Done] Enlarge help icon to 16px and align top-right. User value: clearer help affordance without clutter. Technical approach: render the SVG-based icon at 16px and align it to the top-right of the layout grid. Effort: XS. Dependencies: none. Risks: minor spacing shifts. Result: help icon renders at 16px and sits tighter to the top-right. Tests: not run.
 - [Done] Use SVG help icon for rendering. User value: cleaner help icon that matches the provided SVG. Technical approach: draw the SVG-based icon with a small canvas and bundle the SVG for sizing. Effort: XS. Dependencies: none. Risks: minor theme mismatch for icon colors. Result: help icon now matches the SVG styling. Tests: not run.
 - [Done] Add help icon PNG asset. User value: discreet help icon looks like standard app help affordance. Technical approach: add 12/14/16px filled-circle ? PNGs and use 14px by default. Effort: XS. Dependencies: none. Risks: asset bundling in PyInstaller. Result: help icon uses a PNG asset with size variants. Tests: not run.
 - [Done] Reduce top padding from help icon header. User value: remove wasted vertical space while keeping the help icon top-right. Technical approach: move the help icon into the main grid row and remove the extra header frame. Effort: XS. Dependencies: none. Risks: minor layout shifts. Result: help icon sits top-right without extra header space. Tests: not run.

@@ -350,7 +350,7 @@ class DuplicateCleanerUI:
             command=self._on_view_change,
         ).grid(row=0, column=2, sticky="w", padx=(6, 0))
         self.help_widget = self._build_help_icon(frm)
-        self.help_widget.grid(row=0, column=2, sticky="e", pady=(0, 4))
+        self.help_widget.grid(row=0, column=2, sticky="ne", padx=(0, 0), pady=(0, 2))
 
         # Folder chooser.
         ttk.Label(frm, text="Folder to scan:").grid(row=1, column=0, sticky="w")
@@ -574,7 +574,7 @@ class DuplicateCleanerUI:
             menu.grab_release()
 
     def _build_help_icon(self, parent: tk.Widget) -> tk.Canvas:
-        size = _load_help_icon_size(14)
+        size = max(16, _load_help_icon_size(16))
         bg = self.style.lookup("TFrame", "background") or self.root.cget("background")
         fg = self.style.lookup("TLabel", "foreground") or "#1f1f1f"
         canvas = tk.Canvas(parent, width=size, height=size, bg=bg, highlightthickness=0, bd=0, cursor="hand2")
