@@ -297,17 +297,10 @@ class DuplicateCleanerUI:
         pass
 
     def _build_layout(self) -> None:
-        header = ttk.Frame(self.root, padding=(12, 6, 12, 0))
-        header.grid(row=0, column=0, sticky="ew")
-        header.columnconfigure(0, weight=1)
-        self.help_label = ttk.Label(header, text="?", cursor="hand2", padding=(4, 0))
-        self.help_label.grid(row=0, column=1, sticky="e")
-        self.help_label.bind("<Button-1>", lambda _event: self._show_help_menu())
-
         frm = ttk.Frame(self.root, padding=12)
-        frm.grid(row=1, column=0, sticky="nsew")
+        frm.grid(row=0, column=0, sticky="nsew")
         self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(1, weight=1)
+        self.root.rowconfigure(0, weight=1)
         utility_btn_width = 14
         primary_btn_width = 18
         action_btn_width = 14
@@ -319,7 +312,7 @@ class DuplicateCleanerUI:
 
         # View mode toggle.
         view_frame = ttk.Frame(frm)
-        view_frame.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        view_frame.grid(row=0, column=0, sticky="w", pady=(0, 4))
         ttk.Label(view_frame, text="View:").grid(row=0, column=0, sticky="w")
         ttk.Radiobutton(
             view_frame,
@@ -335,6 +328,9 @@ class DuplicateCleanerUI:
             variable=self.view_mode,
             command=self._on_view_change,
         ).grid(row=0, column=2, sticky="w", padx=(6, 0))
+        self.help_label = ttk.Label(frm, text="?", cursor="hand2", padding=(4, 0))
+        self.help_label.grid(row=0, column=2, sticky="e", pady=(0, 4))
+        self.help_label.bind("<Button-1>", lambda _event: self._show_help_menu())
 
         # Folder chooser.
         ttk.Label(frm, text="Folder to scan:").grid(row=1, column=0, sticky="w")

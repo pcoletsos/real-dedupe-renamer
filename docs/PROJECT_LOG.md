@@ -942,3 +942,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.6.exe`, `archive/delete_real_duplicates-1.7.5.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Help icon spacing)
+Date: 2025-12-23
+Intent:
+- Remove extra top padding while keeping the help icon top-right.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Help icon spacing)
+Date: 2025-12-23
+Intent:
+- Remove extra top padding while keeping the help icon top-right.
+Status: Done
+User-facing changes:
+- Help icon stays in the top-right without adding a tall header row.
+Internal changes:
+- Moved the help icon into the main layout row and removed the header frame.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
