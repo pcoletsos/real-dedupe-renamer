@@ -625,3 +625,17 @@ Files touched:
 - `dist/delete_real_duplicates-1.6.5.exe`, `archive/delete_real_duplicates-1.6.4.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Roadmap update - simplified view task)
+Date: 2025-12-23
+Intent:
+- Add a planned roadmap item for a simplified view alternative with safe defaults.
+Status: Done
+User-facing changes:
+- None (planning entry only).
+Internal changes:
+- Added a new planned item for a simplified view/advanced view split.
+Files touched:
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
