@@ -3,27 +3,28 @@
 Desktop utility to find and remove real duplicate files with a guided UI. It groups duplicates, lets you choose which copy to keep, and can auto-skip prompts when duplicates live in the same folder.
 
 ## Latest build
-- Windows executable (no Python needed): `dist/delete_real_duplicates-1.5.0.exe`  
+- Windows executable (no Python needed): `dist/delete_real_duplicates-1.6.0.exe`  
   Built from the current codebase (PyInstaller one-file, windowed). Run it directly or share the EXE.
 
 ## Run options
-1) **Executable:** double-click `dist/delete_real_duplicates-1.5.0.exe` (or run from a terminal).
+1) **Executable:** double-click `dist/delete_real_duplicates-1.6.0.exe` (or run from a terminal).
 2) **Source (Python 3.9+):**
    ```bash
    python -m pip install -r requirements.txt  # installs optional send2trash
    python delete_real_duplicates.py
    ```
 
-## Core features (v1.5.0)
+## Core features (v1.6.0)
 - Duplicate criteria toggles: content hash (SHA-256), size, file name, modified time.
 - Hash size cap: optionally skip hashing very large files while still comparing them with other checks.
 - Same-folder fast path: if all copies are in one folder, auto-keep the newest and skip the keep-choice dialog.
 - Keep-choice dialog: per-row KEEP/DELETE status column with legend, plus a toggle to show full path + filename (folders only by default).
 - Results table: sortable columns, collapsible groups, filter by name/folder, double-click to open a file’s folder, right-click to copy a row/group.
-- Delete selected: multi-select rows in the results table and delete only the selected files; full-group selections warn before deleting all copies.
+- Delete selected: multi-select rows in the results table; selecting a group row auto-selects its child files; full-group selections warn before deleting all copies.
 - Reports/exports: copy the full report to clipboard or export CSV.
 - UI gating: copy/export/collapse/expand and filter enable only when results exist.
 - Progress: Scan button shows animated progress during scans.
+- Action cues: delete buttons are tinted red, and Scan uses a magnifying glass with a green tint.
 - Settings persistence: last folder, days, criteria, hash limit, same-folder toggle, and keep-dialog display preference saved to `.duplicate_cleaner_settings.json`.
 - Help menu: “How to use” and “Optional checks” explain hashing, criteria, and tips.
 - Dialogs center on the app window for confirmations/errors/info.
@@ -40,8 +41,10 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
    - Collapse/Expand all for large result sets.
    - Double-click a file row to open its folder.
    - Right-click a row/group to copy it.
+   - Selecting a group row also selects all child file rows.
 7) **Delete duplicates:**
    - Use "Delete selected" (button or right-click) to remove only highlighted rows; full-group selections warn before deleting all copies.
+   - Delete actions are tinted red to reinforce destructive actions.
    - Keep-choice dialog per group unless auto-skipped by same-folder mode.
    - Status column shows KEEP/DELETE per row; the legend explains how selections map to deletions.
    - Use "Show full path + filename" if you need filenames; otherwise the dialog shows folders only.

@@ -385,6 +385,21 @@ Files touched:
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
 
+## 2025-12-23 (Release 1.6.0)
+Date: 2025-12-23
+Intent:
+- Bump release references and rebuild the Windows EXE after merging to main.
+Status: Done
+User-facing changes:
+- Updated README to point at the 1.6.0 executable and document group selection + action button cues.
+Internal changes:
+- Updated the PyInstaller spec name, built the 1.6.0 EXE, and archived the 1.5.0 artifact.
+Files touched:
+- `README.md`, `docs/FEATURES.md`, `delete_real_duplicates.spec`
+- `dist/delete_real_duplicates-1.6.0.exe`, `archive/delete_real_duplicates-1.5.0.exe`, `docs/PROJECT_LOG.md`
+Tests:
+- `python -m PyInstaller delete_real_duplicates.spec`
+
 ## 2025-12-23 (Start - Selection + button tint cues)
 Date: 2025-12-23
 Intent:
