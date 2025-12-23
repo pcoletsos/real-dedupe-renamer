@@ -42,6 +42,12 @@
 
 ## Deletion and Safety
 
+### Delete selected rows from results
+- Description: Multi-select rows in the results table and delete only the selected files via the Delete selected button or right-click action; shows selection counts and warns when entire groups are selected.
+- Where: `delete_real_duplicates.py`
+- Status: Done
+- How to verify: Run a scan, select multiple file rows (and an entire group), observe the selection count, and use Delete selected to see the full-group warning.
+
 ### Keep-choice workflow with same-folder auto-keep
 - Description: Prompts for a keep choice per group with a "Keep newest in all groups" shortcut and a per-row KEEP/DELETE status column with legend; the dialog hides filenames by default with a toggle to show full paths; optionally auto-keeps newest when all duplicates share a folder.
 - Where: `delete_real_duplicates.py`

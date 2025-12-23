@@ -344,3 +344,28 @@ Files touched:
 - `dist/delete_real_duplicates-1.4.6.exe`, `archive/delete_real_duplicates-1.4.5.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Delete selected workflow)
+Date: 2025-12-23
+Intent:
+- Add in-table multi-select with a Delete selected workflow, including selection counts and full-group safety confirm.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Delete selected workflow)
+Date: 2025-12-23
+Intent:
+- Add in-table multi-select with a Delete selected workflow, including selection counts and full-group safety confirm.
+Status: Done
+User-facing changes:
+- Results table supports multi-select with Delete selected actions, a selection count indicator, and a full-group delete warning.
+Internal changes:
+- Added selection tracking and a delete-selected flow that respects rename-kept behavior.
+Files touched:
+- `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

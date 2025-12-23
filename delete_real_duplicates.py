@@ -213,6 +213,7 @@ class DuplicateCleanerUI:
         self.include_subfolders = tk.BooleanVar(value=True)
         self.prefix_var = tk.StringVar(value="")
         self.filter_var = tk.StringVar(value="")
+        self.selection_var = tk.StringVar(value="0 files selected / 0 groups affected")
         self.folder_history: List[str] = []
         self._scanning = False
         self._last_hash_skipped = 0
@@ -226,6 +227,7 @@ class DuplicateCleanerUI:
         self._last_sort_column: str | None = None
         self._last_sort_direction: bool = True  # True = ascending
         self._spinner_job: str | None = None
+        self._actions_enabled = False
 
         self._build_menu()
         self._build_layout()
@@ -351,14 +353,24 @@ class DuplicateCleanerUI:
         )
         actions = ttk.Frame(summary_frame)
         actions.grid(row=0, column=1, sticky="e")
+        self.delete_selected_btn = ttk.Button(
+            actions,
+            text="Delete selected",
+            command=self._delete_selected,
+            state="disabled",
+            style="Danger.TButton",
+            width=14,
+        )
+        self.delete_selected_btn.grid(row=0, column=0, padx=(0, 4))
         self.copy_btn = ttk.Button(actions, text="Copy report", command=self._copy_report, state="disabled")
-        self.copy_btn.grid(row=0, column=0, padx=(0, 4))
+        self.copy_btn.grid(row=0, column=1, padx=(0, 4))
         self.export_btn = ttk.Button(actions, text="Export CSV", command=self._export_csv, state="disabled")
-        self.export_btn.grid(row=0, column=1, padx=(0, 4))
+        self.export_btn.grid(row=0, column=2, padx=(0, 4))
         self.collapse_btn = ttk.Button(actions, text="Collapse all", command=self._collapse_all, state="disabled")
-        self.collapse_btn.grid(row=0, column=2, padx=(0, 4))
+        self.collapse_btn.grid(row=0, column=3, padx=(0, 4))
         self.expand_btn = ttk.Button(actions, text="Expand all", command=self._expand_all, state="disabled")
-        self.expand_btn.grid(row=0, column=3)
+        self.expand_btn.grid(row=0, column=4)
+        ttk.Label(actions, textvariable=self.selection_var).grid(row=1, column=0, columnspan=5, sticky="e", pady=(4, 0))
 
         # Filter.
         filter_frame = ttk.Frame(frm)
@@ -376,7 +388,7 @@ class DuplicateCleanerUI:
 
         columns = ("location", "modified", "size")
         self.results_tree = ttk.Treeview(
-            tree_frame, columns=columns, show="tree headings", selectmode="browse", style="ColumnLines.Treeview"
+            tree_frame, columns=columns, show="tree headings", selectmode="extended", style="ColumnLines.Treeview"
         )
         self.results_tree.heading("#0", text="File / Group", anchor="w")
         self.results_tree.heading("location", text="Folder / Criteria", anchor="w")
@@ -397,6 +409,7 @@ class DuplicateCleanerUI:
         hsb.grid(row=1, column=0, sticky="ew")
         self.results_tree.bind("<Double-1>", self._on_tree_double_click)
         self.results_tree.bind("<Button-3>", self._on_tree_right_click)
+        self.results_tree.bind("<<TreeviewSelect>>", self._on_tree_selection_change)
 
     def _load_settings(self) -> None:
         """Load saved settings from disk if present."""
@@ -587,6 +600,7 @@ class DuplicateCleanerUI:
         for item in self.results_tree.get_children():
             self.results_tree.delete(item)
         self._item_meta.clear()
+        self._update_selection_status()
         self.summary_var.set("Scanning...")
         self.notice_var.set("")
         self._last_scan_seconds = None
@@ -669,11 +683,12 @@ class DuplicateCleanerUI:
                 summary += f" Skipped {self._last_scan_skipped} file(s) due to scan errors."
                 self.notice_var.set("Some files could not be scanned; see summary.")
             else:
-                self.notice_var.set("")
+            self.notice_var.set("")
             self.summary_var.set(summary)
             self.delete_btn.configure(state="disabled")
             self._set_actions_enabled(False)
             self._set_filter_enabled(False)
+            self._update_selection_status()
             return
 
         total_dupes = sum(len(v) - 1 for v in self.duplicates.values())
@@ -753,6 +768,7 @@ class DuplicateCleanerUI:
         # Reapply last sort to keep table stable across scans/filters.
         if self._last_sort_column is not None:
             self._sort_tree(self._last_sort_column, direction=self._last_sort_direction, remember=False, toggle=False)
+        self._update_selection_status()
 
     def _matches_filter(self, path: Path, needle: str) -> bool:
         text = needle.casefold()
@@ -796,12 +812,72 @@ class DuplicateCleanerUI:
             return meta.get("size", 0)
         return 0
 
+    def _collect_selected_file_ids(self) -> Tuple[set[str], set[str]]:
+        selected_items = set(self.results_tree.selection())
+        selected_groups = {item for item in selected_items if self._item_meta.get(item, {}).get("kind") == "group"}
+        selected_files = {item for item in selected_items if self._item_meta.get(item, {}).get("kind") == "file"}
+
+        for group_id in selected_groups:
+            for child in self.results_tree.get_children(group_id):
+                selected_files.add(child)
+
+        groups_affected: set[str] = set()
+        for item in selected_files:
+            parent = self.results_tree.parent(item)
+            if parent:
+                groups_affected.add(parent)
+        return selected_files, groups_affected
+
+    def _fully_selected_groups(self, selected_files: set[str], groups_affected: set[str]) -> List[str]:
+        fully_selected: List[str] = []
+        for group_id in self.results_tree.get_children(""):
+            if group_id not in groups_affected:
+                continue
+            children = set(self.results_tree.get_children(group_id))
+            if children and children.issubset(selected_files):
+                fully_selected.append(group_id)
+        return fully_selected
+
+    def _update_selection_status(self) -> None:
+        selected_files, groups_affected = self._collect_selected_file_ids()
+        self.selection_var.set(f"{len(selected_files)} files selected / {len(groups_affected)} groups affected")
+        if self._actions_enabled and selected_files:
+            self.delete_selected_btn.configure(state="normal")
+        else:
+            self.delete_selected_btn.configure(state="disabled")
+
+    def _on_tree_selection_change(self, _event: tk.Event) -> None:
+        self._update_selection_status()
+
+    def _confirm_full_group_delete(self, group_labels: List[str]) -> bool:
+        message = (
+            "Your selection includes every copy in the groups listed below. Continuing will delete all copies in those groups.\n\n"
+            "Fully selected groups:\n"
+            + "\n".join(f"- {label}" for label in group_labels)
+        )
+        result = self._modal_dialog(
+            "All Copies Selected",
+            message,
+            [("Review Selection", False), ("Delete Selected (Including Full Groups)", True)],
+            default_index=0,
+        )
+        return bool(result)
+
     def _on_tree_right_click(self, event: tk.Event) -> None:
         item = self.results_tree.identify_row(event.y)
         if not item:
             return
-        self.results_tree.selection_set(item)
+        current = set(self.results_tree.selection())
+        if item not in current:
+            self.results_tree.selection_set(item)
         menu = tk.Menu(self.root, tearoff=False)
+        selected_files, _ = self._collect_selected_file_ids()
+        menu.add_command(
+            label="Delete selected",
+            command=self._delete_selected,
+            state="normal" if selected_files else "disabled",
+        )
+        menu.add_separator()
         menu.add_command(label="Copy row", command=lambda: self._copy_tree_item(item))
         meta = self._item_meta.get(item, {})
         if meta.get("kind") == "file":
@@ -835,9 +911,11 @@ class DuplicateCleanerUI:
         self.root.clipboard_append("\n".join(lines))
 
     def _set_actions_enabled(self, enabled: bool) -> None:
+        self._actions_enabled = enabled
         state = "normal" if enabled else "disabled"
         for btn in [self.copy_btn, self.export_btn, self.collapse_btn, self.expand_btn]:
             btn.configure(state=state)
+        self._update_selection_status()
 
     def _set_filter_enabled(self, enabled: bool) -> None:
         self.filter_entry.configure(state="normal" if enabled else "disabled")
@@ -854,7 +932,13 @@ class DuplicateCleanerUI:
         y = root_y + max((root_h - h) // 2, 0)
         win.geometry(f"{w}x{h}+{x}+{y}")
 
-    def _modal_dialog(self, title: str, message: str, buttons: List[Tuple[str, object]]) -> object:
+    def _modal_dialog(
+        self,
+        title: str,
+        message: str,
+        buttons: List[Tuple[str, object]],
+        default_index: int | None = None,
+    ) -> object:
         top = tk.Toplevel(self.root)
         top.title(title)
         top.transient(self.root)
@@ -873,10 +957,16 @@ class DuplicateCleanerUI:
             result = val
             top.destroy()
 
+        button_refs = []
         for idx, (label, val) in enumerate(buttons):
-            ttk.Button(btns, text=label, command=lambda v=val: on_choose(v)).pack(
-                side="right", padx=(6 if idx else 0, 0)
-            )
+            btn = ttk.Button(btns, text=label, command=lambda v=val: on_choose(v))
+            btn.pack(side="right", padx=(6 if idx else 0, 0))
+            button_refs.append((btn, val))
+
+        if default_index is not None and 0 <= default_index < len(button_refs):
+            default_btn, default_val = button_refs[default_index]
+            default_btn.focus_set()
+            top.bind("<Return>", lambda _event: on_choose(default_val))
 
         self._center_window(top)
         top.wait_window()
@@ -973,6 +1063,55 @@ class DuplicateCleanerUI:
             self._info("Exported", f"Report saved to {path_str}")
         except Exception as exc:
             self._error("Export failed", f"Could not save CSV:\n{exc}")
+
+    def _delete_selected(self) -> None:
+        selected_files, groups_affected = self._collect_selected_file_ids()
+        if not selected_files:
+            self._info("Nothing selected", "Select one or more file rows to delete.")
+            return
+
+        full_groups = self._fully_selected_groups(selected_files, groups_affected)
+        if full_groups:
+            group_labels = [self.results_tree.item(group_id, "text") for group_id in full_groups]
+            if not self._confirm_full_group_delete(group_labels):
+                return
+
+        to_delete: List[Path] = []
+        to_keep: List[Path] = []
+        for group_id in groups_affected:
+            for child in self.results_tree.get_children(group_id):
+                meta = self._item_meta.get(child, {})
+                path = meta.get("path")
+                if not isinstance(path, Path):
+                    continue
+                if child in selected_files:
+                    to_delete.append(path)
+                else:
+                    to_keep.append(path)
+
+        if not to_delete:
+            self._info("Nothing to delete", "No selected files were found in the results.")
+            return
+
+        total_size = sum(path.stat().st_size for path in to_delete if path.exists())
+        confirm = self._confirm(
+            "Confirm deletion",
+            f"This will delete {len(to_delete)} selected file(s), freeing ~{human_size(total_size)}.\n"
+            "Files not selected will be kept.\n\n"
+            "Proceed?",
+        )
+        if not confirm:
+            return
+
+        rename_report: List[Tuple[Path, Path]] = []
+        if self.rename_kept_enabled.get():
+            rename_report = self._rename_conflicting_kept_files(to_keep, to_delete)
+        delete_files(to_delete, on_error=self._error)
+        msg = f"Deleted {len(to_delete)} selected file(s)."
+        if rename_report:
+            msg += f"\nRenamed {len(rename_report)} kept file(s) with name conflicts."
+        self._info("Done", msg)
+        self._scan()
 
     def _delete(self) -> None:
         if not self.duplicates:
