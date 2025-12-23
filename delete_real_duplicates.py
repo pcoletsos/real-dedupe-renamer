@@ -329,7 +329,7 @@ class DuplicateCleanerUI:
             command=self._on_view_change,
         ).grid(row=0, column=2, sticky="w", padx=(6, 0))
         view_frame.columnconfigure(3, weight=1)
-        self.help_btn = ttk.Button(view_frame, text="Help", command=self._show_help_menu, width=8)
+        self.help_btn = ttk.Button(view_frame, text="?", command=self._show_help_menu, width=3)
         self.help_btn.grid(row=0, column=4, sticky="e")
 
         # Folder chooser.

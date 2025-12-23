@@ -860,3 +860,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.4.exe`, `archive/delete_real_duplicates-1.7.3.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Discreet help icon)
+Date: 2025-12-23
+Intent:
+- Replace the Help button with a question-mark icon aligned to the top-right.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `README.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Discreet help icon)
+Date: 2025-12-23
+Intent:
+- Replace the Help button with a question-mark icon aligned to the top-right.
+Status: Done
+User-facing changes:
+- Help access now uses a ? icon in the top-right.
+Internal changes:
+- Updated the help button label and docs to reflect the icon.
+Files touched:
+- `delete_real_duplicates.py`, `README.md`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
