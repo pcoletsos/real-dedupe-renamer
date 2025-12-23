@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='delete_real_duplicates-1.7.3',
+    name='delete_real_duplicates-1.7.4',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
