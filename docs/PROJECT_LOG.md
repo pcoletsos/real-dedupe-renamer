@@ -384,3 +384,29 @@ Files touched:
 - `dist/delete_real_duplicates-1.5.0.exe`, `archive/delete_real_duplicates-1.4.6.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Selection + button tint cues)
+Date: 2025-12-23
+Intent:
+- Auto-select child rows when a group row is selected, tint delete buttons red, and add a magnifying glass + green tint to Scan.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`
+- `README.md`, `delete_real_duplicates.spec`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Selection + button tint cues)
+Date: 2025-12-23
+Intent:
+- Auto-select child rows when a group row is selected, tint delete buttons red, and add a magnifying glass + green tint to Scan.
+Status: Done
+User-facing changes:
+- Group selection now auto-selects child file rows, delete actions are tinted red, and Scan shows a magnifying glass with a green tint.
+Internal changes:
+- Selection change handler expands group selections and button styles map to delete/scan actions.
+Files touched:
+- `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

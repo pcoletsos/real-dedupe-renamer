@@ -187,8 +187,32 @@ class DuplicateCleanerUI:
         root.title("Delete Real Duplicates")
 
         self.style = ttk.Style(root)
-        self.style.configure("Primary.TButton", padding=(12, 8), font=("Segoe UI", 10, "bold"))
-        self.style.configure("Danger.TButton", padding=(12, 8), font=("Segoe UI", 10, "bold"))
+        if self.style.theme_use() in {"vista", "xpnative", "winnative"}:
+            self.style.theme_use("clam")
+        self.style.configure(
+            "Primary.TButton",
+            padding=(12, 8),
+            font=("Segoe UI", 10, "bold"),
+            background="#d8f0d8",
+            foreground="#1f5f1f",
+        )
+        self.style.map(
+            "Primary.TButton",
+            background=[("active", "#cce8cc"), ("disabled", "#edf7ed")],
+            foreground=[("disabled", "#8a8a8a")],
+        )
+        self.style.configure(
+            "Danger.TButton",
+            padding=(12, 8),
+            font=("Segoe UI", 10, "bold"),
+            background="#f6d6d6",
+            foreground="#7a1f1f",
+        )
+        self.style.map(
+            "Danger.TButton",
+            background=[("active", "#f0c7c7"), ("disabled", "#f9eded")],
+            foreground=[("disabled", "#8a8a8a")],
+        )
         # Table styling: subtle borders on headings/cells to clarify column boundaries.
         self.style.configure(
             "ColumnLines.Treeview",
@@ -228,6 +252,7 @@ class DuplicateCleanerUI:
         self._last_sort_direction: bool = True  # True = ascending
         self._spinner_job: str | None = None
         self._actions_enabled = False
+        self._selection_updating = False
 
         self._build_menu()
         self._build_layout()
@@ -331,7 +356,7 @@ class DuplicateCleanerUI:
         # Buttons.
         btn_frame = ttk.Frame(frm)
         btn_frame.grid(row=7, column=0, columnspan=3, sticky="w", pady=(6, 4))
-        self.scan_btn = ttk.Button(btn_frame, text="Scan", command=self._scan, style="Primary.TButton", width=14)
+        self.scan_btn = ttk.Button(btn_frame, text="Scan 🔍", command=self._scan, style="Primary.TButton", width=14)
         self.scan_btn.grid(row=0, column=0, padx=(0, 10))
         self.delete_btn = ttk.Button(
             btn_frame, text="Delete duplicates", command=self._delete, state="disabled", style="Danger.TButton", width=18
@@ -475,7 +500,7 @@ class DuplicateCleanerUI:
         self._spinner_idx = 0
 
         def tick() -> None:
-            self.scan_btn.configure(text=f"Scanning{dots[self._spinner_idx]}")
+            self.scan_btn.configure(text=f"Scanning 🔍{dots[self._spinner_idx]}")
             self._spinner_idx = (self._spinner_idx + 1) % len(dots)
             self._spinner_job = self.root.after(200, tick)
 
@@ -488,7 +513,7 @@ class DuplicateCleanerUI:
             except Exception:
                 pass
             self._spinner_job = None
-        self.scan_btn.configure(text="Scan")
+        self.scan_btn.configure(text="Scan 🔍")
         self._spinner_idx = 0
 
     def _remember_folder(self, folder: Path) -> None:
@@ -847,6 +872,18 @@ class DuplicateCleanerUI:
             self.delete_selected_btn.configure(state="disabled")
 
     def _on_tree_selection_change(self, _event: tk.Event) -> None:
+        if self._selection_updating:
+            return
+        selected = set(self.results_tree.selection())
+        if selected:
+            desired = set(selected)
+            for item in selected:
+                if self._item_meta.get(item, {}).get("kind") == "group":
+                    desired.update(self.results_tree.get_children(item))
+            if desired != selected:
+                self._selection_updating = True
+                self.results_tree.selection_set(list(desired))
+                self._selection_updating = False
         self._update_selection_status()
 
     def _confirm_full_group_delete(self, group_labels: List[str]) -> bool:
@@ -959,7 +996,11 @@ class DuplicateCleanerUI:
 
         button_refs = []
         for idx, (label, val) in enumerate(buttons):
-            btn = ttk.Button(btns, text=label, command=lambda v=val: on_choose(v))
+            style_name = "Danger.TButton" if "delete" in label.casefold() else None
+            if style_name:
+                btn = ttk.Button(btns, text=label, command=lambda v=val: on_choose(v), style=style_name)
+            else:
+                btn = ttk.Button(btns, text=label, command=lambda v=val: on_choose(v))
             btn.pack(side="right", padx=(6 if idx else 0, 0))
             button_refs.append((btn, val))
 
