@@ -1106,3 +1106,18 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.10.exe`, `archive/delete_real_duplicates-1.7.9.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Release 1.7.11)
+Date: 2025-12-23
+Intent:
+- Bump release references and rebuild the Windows EXE after merging to main.
+Status: Done
+User-facing changes:
+- Updated README to point at the 1.7.11 executable.
+Internal changes:
+- Updated PyInstaller spec name, built the 1.7.11 EXE, and archived the 1.7.10 artifact.
+Files touched:
+- `README.md`, `docs/FEATURES.md`, `delete_real_duplicates.spec`
+- `build/`, `dist/delete_real_duplicates-1.7.11.exe`, `archive/delete_real_duplicates-1.7.10.exe`, `docs/PROJECT_LOG.md`
+Tests:
+- `python -m PyInstaller delete_real_duplicates.spec`
