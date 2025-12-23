@@ -1057,16 +1057,7 @@ class DuplicateCleanerUI:
             f"{rename_note}\n\n"
             "Proceed?"
         )
-        choice = self._modal_dialog(
-            "Confirm delete",
-            message,
-            [
-                ("Delete duplicates", "delete"),
-                ("Cancel", "cancel"),
-                ("Review in Advanced", "review"),
-            ],
-            default_index=1,
-        )
+        choice = self._confirm_simplified_delete(message)
         if choice == "review":
             self.view_mode.set("advanced")
             self._apply_view_mode()
@@ -1083,6 +1074,48 @@ class DuplicateCleanerUI:
             msg += f"\nRenamed {len(rename_report)} kept file(s) to the timestamped pattern."
         self._info("Done", msg)
         self._scan()
+
+    def _confirm_simplified_delete(self, message: str) -> str:
+        top = tk.Toplevel(self.root)
+        top.title("Confirm delete")
+        top.transient(self.root)
+        top.grab_set()
+
+        body = ttk.Frame(top, padding=12)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text=message, wraplength=520, justify="left").pack(fill="x", pady=(0, 10))
+
+        btn_row = ttk.Frame(body)
+        btn_row.pack(fill="x")
+        left_btns = ttk.Frame(btn_row)
+        left_btns.pack(side="left")
+        right_btns = ttk.Frame(btn_row)
+        right_btns.pack(side="right")
+
+        result = "cancel"
+
+        def on_choose(val: str) -> None:
+            nonlocal result
+            result = val
+            top.destroy()
+
+        cancel_btn = ttk.Button(left_btns, text="Cancel", command=lambda: on_choose("cancel"))
+        cancel_btn.pack(side="left")
+        delete_btn = ttk.Button(
+            right_btns, text="Delete duplicates", command=lambda: on_choose("delete"), style="Danger.TButton"
+        )
+        delete_btn.pack(side="right")
+
+        ttk.Separator(body, orient="horizontal").pack(fill="x", pady=(8, 6))
+        review_btn = ttk.Button(body, text="Review in Advanced", command=lambda: on_choose("review"))
+        review_btn.pack(anchor="center")
+
+        cancel_btn.focus_set()
+        top.bind("<Return>", lambda _event: on_choose("cancel"))
+
+        self._center_window(top)
+        top.wait_window()
+        return result
 
     def _matches_filter(self, path: Path, needle: str) -> bool:
         text = needle.casefold()

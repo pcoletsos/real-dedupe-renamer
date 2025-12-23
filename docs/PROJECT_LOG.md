@@ -737,3 +737,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.1.exe`, `archive/delete_real_duplicates-1.7.0.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Simplified confirm dialog layout)
+Date: 2025-12-23
+Intent:
+- Move Cancel to the bottom-left and place Review in Advanced below the primary buttons in the simplified confirm dialog.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Simplified confirm dialog layout)
+Date: 2025-12-23
+Intent:
+- Move Cancel to the bottom-left and place Review in Advanced below the primary buttons in the simplified confirm dialog.
+Status: Done
+User-facing changes:
+- Simplified confirm dialog now separates Review in Advanced into its own row and keeps Cancel on the left.
+Internal changes:
+- Added a dedicated simplified confirm dialog layout.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
