@@ -545,3 +545,28 @@ Files touched:
 - `dist/delete_real_duplicates-1.6.3.exe`, `archive/delete_real_duplicates-1.6.2.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Full-group confirm dialog layout)
+Date: 2025-12-23
+Intent:
+- Optimize the "All Copies Selected" dialog layout to reduce empty space and tighten wrapping.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Full-group confirm dialog layout)
+Date: 2025-12-23
+Intent:
+- Optimize the "All Copies Selected" dialog layout to reduce empty space and tighten wrapping.
+Status: Done
+User-facing changes:
+- Full-group delete confirmation now uses a tighter, labeled layout with wrapped group names to reduce empty space.
+Internal changes:
+- Added a dedicated dialog layout for the full-group confirmation flow.
+Files touched:
+- `delete_real_duplicates.py`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

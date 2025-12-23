@@ -929,17 +929,61 @@ class DuplicateCleanerUI:
         self._update_selection_status()
 
     def _confirm_full_group_delete(self, group_labels: List[str]) -> bool:
-        message = (
-            "Your selection includes every copy in the groups listed below. Continuing will delete all copies in those groups.\n\n"
-            "Fully selected groups:\n"
-            + "\n".join(f"- {label}" for label in group_labels)
+        top = tk.Toplevel(self.root)
+        top.title("All Copies Selected")
+        top.transient(self.root)
+        top.grab_set()
+
+        body = ttk.Frame(top, padding=12)
+        body.pack(fill="both", expand=True)
+
+        root_width = self.root.winfo_width()
+        if root_width <= 1:
+            self.root.update_idletasks()
+            root_width = self.root.winfo_width()
+        wrap = min(440, max(320, int(root_width * 0.55)))
+
+        warning = ttk.Label(
+            body,
+            text=(
+                "Your selection includes every copy in the groups listed below. "
+                "Continuing will delete all copies in those groups."
+            ),
+            wraplength=wrap,
+            justify="left",
         )
-        result = self._modal_dialog(
-            "All Copies Selected",
-            message,
-            [("Review Selection", False), ("Delete Selected (Including Full Groups)", True)],
-            default_index=0,
+        warning.pack(fill="x", pady=(0, 8))
+
+        groups_frame = ttk.LabelFrame(body, text="Fully selected groups", padding=(6, 4))
+        groups_frame.pack(fill="x", pady=(0, 8))
+        groups_text = "\n".join(f"- {label}" for label in group_labels)
+        groups_label = ttk.Label(groups_frame, text=groups_text, wraplength=wrap, justify="left")
+        groups_label.pack(fill="x")
+
+        btns = ttk.Frame(body)
+        btns.pack(fill="x")
+        result: object = None
+
+        def on_choose(val: object) -> None:
+            nonlocal result
+            result = val
+            top.destroy()
+
+        review_btn = ttk.Button(btns, text="Review Selection", command=lambda: on_choose(False))
+        review_btn.pack(side="right")
+        delete_btn = ttk.Button(
+            btns,
+            text="Delete Selected (Including Full Groups)",
+            command=lambda: on_choose(True),
+            style="Danger.TButton",
         )
+        delete_btn.pack(side="right", padx=(6, 0))
+
+        review_btn.focus_set()
+        top.bind("<Return>", lambda _event: on_choose(False))
+
+        self._center_window(top)
+        top.wait_window()
         return bool(result)
 
     def _on_tree_right_click(self, event: tk.Event) -> None:
