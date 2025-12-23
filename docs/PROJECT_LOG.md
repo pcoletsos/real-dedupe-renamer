@@ -303,3 +303,29 @@ Files touched:
 - `dist/delete_real_duplicates-1.4.5.exe`, `archive/delete_real_duplicates-1.4.4.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Keep-choice dialog hides filenames)
+Date: 2025-12-23
+Intent:
+- Hide filenames in the keep-choice dialog by default, add a dialog-only toggle to show full paths, and persist the setting.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`
+- `README.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Keep-choice dialog hides filenames)
+Date: 2025-12-23
+Intent:
+- Hide filenames in the keep-choice dialog by default, add a dialog-only toggle to show full paths, and persist the setting.
+Status: Done
+User-facing changes:
+- Keep-choice dialog now defaults to folder-only display with a toggle to show full path + filename; the setting persists.
+Internal changes:
+- Stored a new keep-dialog display preference in settings and updated dialog rendering.
+Files touched:
+- `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

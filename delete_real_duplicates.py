@@ -209,6 +209,7 @@ class DuplicateCleanerUI:
         self.hash_max_mb = tk.IntVar(value=500)
         self.skip_same_folder_prompt = tk.BooleanVar(value=False)
         self.rename_kept_enabled = tk.BooleanVar(value=False)
+        self.show_keep_full_paths = tk.BooleanVar(value=False)
         self.include_subfolders = tk.BooleanVar(value=True)
         self.prefix_var = tk.StringVar(value="")
         self.filter_var = tk.StringVar(value="")
@@ -413,6 +414,7 @@ class DuplicateCleanerUI:
                 self.hash_max_mb.set(int(opts.get("hash_max_mb", self.hash_max_mb.get())))
                 self.skip_same_folder_prompt.set(bool(opts.get("skip_same_folder_prompt", self.skip_same_folder_prompt.get())))
                 self.rename_kept_enabled.set(bool(opts.get("rename_kept_enabled", self.rename_kept_enabled.get())))
+                self.show_keep_full_paths.set(bool(opts.get("show_keep_full_paths", self.show_keep_full_paths.get())))
                 self.include_subfolders.set(bool(opts.get("include_subfolders", self.include_subfolders.get())))
                 self.prefix_var.set(str(opts.get("name_prefix", self.prefix_var.get()) or "").strip())
                 recents = opts.get("recent_folders", [])
@@ -441,6 +443,7 @@ class DuplicateCleanerUI:
             "hash_max_mb": int(self.hash_max_mb.get()),
             "skip_same_folder_prompt": bool(self.skip_same_folder_prompt.get()),
             "rename_kept_enabled": bool(self.rename_kept_enabled.get()),
+            "show_keep_full_paths": bool(self.show_keep_full_paths.get()),
             "name_prefix": self.prefix_var.get().strip(),
             "include_subfolders": bool(self.include_subfolders.get()),
             "recent_folders": list(self.folder_history),
@@ -1051,7 +1054,26 @@ class DuplicateCleanerUI:
         style.configure("DeleteStatus.TLabel", foreground="#8b1d1d")
 
         legend = ttk.Label(container, text="Legend: KEEP = selected file; DELETE = will be removed.")
-        legend.pack(anchor="w", pady=(0, 6))
+        legend.pack(anchor="w", pady=(0, 4))
+
+        def format_keep_text(path: Path, size: int, mtime: float, show_full: bool) -> str:
+            ts = _dt.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+            location = str(path if show_full else path.parent)
+            return f"{location}  ({human_size(size)}, modified {ts})"
+
+        display_rows: List[Tuple[ttk.Radiobutton, Path, int, float]] = []
+
+        def refresh_keep_texts() -> None:
+            show_full = bool(self.show_keep_full_paths.get())
+            for radio, path, size, mtime in display_rows:
+                radio.configure(text=format_keep_text(path, size, mtime, show_full))
+
+        ttk.Checkbutton(
+            container,
+            text="Show full path + filename",
+            variable=self.show_keep_full_paths,
+            command=refresh_keep_texts,
+        ).pack(anchor="w", pady=(0, 6))
 
         def set_status_labels(var: tk.IntVar, labels: List[ttk.Label]) -> None:
             selected_idx = var.get()
@@ -1076,20 +1098,20 @@ class DuplicateCleanerUI:
             ttk.Label(table, text="File").grid(row=0, column=1, sticky="w")
             status_labels: List[ttk.Label] = []
             for idx, (path, size, mtime) in enumerate(sorted_files):
-                ts = _dt.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
-                text = f"{path}  ({human_size(size)}, modified {ts})"
                 status_label = ttk.Label(
                     table, text="DELETE", width=7, anchor="w", style="DeleteStatus.TLabel"
                 )
                 status_label.grid(row=idx + 1, column=0, sticky="w", padx=(0, 8), pady=(0, 2))
                 status_labels.append(status_label)
-                ttk.Radiobutton(
+                radio = ttk.Radiobutton(
                     table,
-                    text=text,
+                    text=format_keep_text(path, size, mtime, self.show_keep_full_paths.get()),
                     variable=var,
                     value=idx,
                     command=lambda v=var, labels=status_labels: set_status_labels(v, labels),
-                ).grid(row=idx + 1, column=1, sticky="w", pady=(0, 2))
+                )
+                radio.grid(row=idx + 1, column=1, sticky="w", pady=(0, 2))
+                display_rows.append((radio, path, size, mtime))
             set_status_labels(var, status_labels)
             keep_vars.append((var, sorted_files, key, status_labels))
 
