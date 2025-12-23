@@ -585,3 +585,28 @@ Files touched:
 - `dist/delete_real_duplicates-1.6.4.exe`, `archive/delete_real_duplicates-1.6.3.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Full-group dialog buttons)
+Date: 2025-12-23
+Intent:
+- Align the full-group confirm dialog buttons to the same height, move review/cancel to the left, and reduce button emphasis.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Full-group dialog buttons)
+Date: 2025-12-23
+Intent:
+- Align the full-group confirm dialog buttons to the same height, move review/cancel to the left, and reduce button emphasis.
+Status: Done
+User-facing changes:
+- Full-group confirm dialog buttons now share the same height and font size, with Review on the left and Delete on the right.
+Internal changes:
+- Added dialog-specific button styles for consistent sizing.
+Files touched:
+- `delete_real_duplicates.py`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

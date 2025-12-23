@@ -214,6 +214,19 @@ class DuplicateCleanerUI:
             background=[("active", "#f0c7c7"), ("disabled", "#f9eded")],
             foreground=[("disabled", "#8a8a8a")],
         )
+        self.style.configure("Dialog.TButton", padding=(10, 6), font=("Segoe UI", 9))
+        self.style.configure(
+            "DialogDanger.TButton",
+            padding=(10, 6),
+            font=("Segoe UI", 9),
+            background="#f6d6d6",
+            foreground="#7a1f1f",
+        )
+        self.style.map(
+            "DialogDanger.TButton",
+            background=[("active", "#f0c7c7"), ("disabled", "#f9eded")],
+            foreground=[("disabled", "#8a8a8a")],
+        )
         # Table styling: subtle borders on headings/cells to clarify column boundaries.
         self.style.configure(
             "ColumnLines.Treeview",
@@ -962,6 +975,7 @@ class DuplicateCleanerUI:
 
         btns = ttk.Frame(body)
         btns.pack(fill="x")
+        btns.columnconfigure(0, weight=1)
         result: object = None
 
         def on_choose(val: object) -> None:
@@ -969,15 +983,17 @@ class DuplicateCleanerUI:
             result = val
             top.destroy()
 
-        review_btn = ttk.Button(btns, text="Review Selection", command=lambda: on_choose(False))
-        review_btn.pack(side="right")
+        review_btn = ttk.Button(
+            btns, text="Review Selection", command=lambda: on_choose(False), style="Dialog.TButton"
+        )
+        review_btn.grid(row=0, column=0, sticky="w")
         delete_btn = ttk.Button(
             btns,
             text="Delete Selected (Including Full Groups)",
             command=lambda: on_choose(True),
-            style="Danger.TButton",
+            style="DialogDanger.TButton",
         )
-        delete_btn.pack(side="right", padx=(6, 0))
+        delete_btn.grid(row=0, column=1, sticky="e")
 
         review_btn.focus_set()
         top.bind("<Return>", lambda _event: on_choose(False))
