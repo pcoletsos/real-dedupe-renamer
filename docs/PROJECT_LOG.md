@@ -778,3 +778,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.2.exe`, `archive/delete_real_duplicates-1.7.1.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - Status box border continuity)
+Date: 2025-12-23
+Intent:
+- Fix the status box border line discontinuity in the main window.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - Status box border continuity)
+Date: 2025-12-23
+Intent:
+- Fix the status box border line discontinuity in the main window.
+Status: Done
+User-facing changes:
+- Status panel now shows a continuous border without breaks.
+Internal changes:
+- Replaced the status label frame with a framed box to keep borders continuous.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

@@ -446,19 +446,23 @@ class DuplicateCleanerUI:
         # Status.
         self.notice_var = tk.StringVar(value="")
         self.summary_var = tk.StringVar(value="Scan results will appear here.")
-        status_frame = ttk.LabelFrame(frm, text="Status", padding=(8, 6))
-        status_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(4, 2))
-        status_frame.columnconfigure(0, weight=1)
-        status_frame.grid_propagate(False)
+        status_container = ttk.Frame(frm)
+        status_container.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(4, 2))
+        status_container.columnconfigure(0, weight=1)
+        ttk.Label(status_container, text="Status").grid(row=0, column=0, sticky="w")
+        self.status_box = ttk.Frame(status_container, padding=(8, 6), relief="solid", borderwidth=1)
+        self.status_box.grid(row=1, column=0, sticky="ew")
+        self.status_box.columnconfigure(0, weight=1)
+        self.status_box.grid_propagate(False)
         line_height = tkfont.nametofont("TkDefaultFont").metrics("linespace")
-        status_frame.configure(height=line_height * 3 + 8)
-        self.summary_label = ttk.Label(status_frame, textvariable=self.summary_var, justify="left")
+        self.status_box.configure(height=line_height * 3 + 8)
+        self.summary_label = ttk.Label(self.status_box, textvariable=self.summary_var, justify="left")
         self.summary_label.grid(row=0, column=0, sticky="w")
         self.notice_label = ttk.Label(
-            status_frame, textvariable=self.notice_var, foreground="#b36200", justify="left"
+            self.status_box, textvariable=self.notice_var, foreground="#b36200", justify="left"
         )
         self.notice_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
-        status_frame.bind("<Configure>", self._update_message_wrap)
+        self.status_box.bind("<Configure>", self._update_message_wrap)
 
         self.actions_frame = ttk.Frame(frm)
         self.actions_frame.grid(row=10, column=0, columnspan=3, sticky="ew", pady=(2, 4))
