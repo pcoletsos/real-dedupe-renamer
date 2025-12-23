@@ -3,7 +3,7 @@
 ## Scanning and Matching
 
 ### Duplicate criteria toggles (hash, size, name, modified time)
-- Description: Find duplicates by selectable criteria, including SHA-256 content hashing.
+- Description: Find duplicates by selectable criteria, including SHA-256 content hashing; modified time matching uses full timestamp precision.
 - Where: `delete_real_duplicates.py`
 - Status: Done
 - How to verify: Run a scan on a folder with known duplicates and toggle criteria to see group changes.

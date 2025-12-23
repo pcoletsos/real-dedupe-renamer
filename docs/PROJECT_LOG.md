@@ -223,3 +223,28 @@ Files touched:
 - `dist/delete_real_duplicates-1.4.3.exe`, `archive/delete_real_duplicates-1.4.2.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-23 (Start - mtime precision)
+Date: 2025-12-23
+Intent:
+- Improve modified time matching precision when used as a criterion.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`, `docs/FEATURES.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-23 (Done - mtime precision)
+Date: 2025-12-23
+Intent:
+- Improve modified time matching precision when used as a criterion.
+Status: Done
+User-facing changes:
+- Modified-time matching uses full timestamp precision to avoid false positives from sub-second differences.
+Internal changes:
+- Grouping keys now use the full `mtime` float instead of truncating to seconds.
+Files touched:
+- `delete_real_duplicates.py`, `docs/FEATURES.md`, `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

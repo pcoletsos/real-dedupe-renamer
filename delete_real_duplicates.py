@@ -152,7 +152,7 @@ def find_duplicate_groups(
             if use_name:
                 components.append(("name", _normalize_name(path.name)))
             if use_mtime:
-                components.append(("mtime", int(mtime)))
+                components.append(("mtime", mtime))
 
             if not components:
                 continue
