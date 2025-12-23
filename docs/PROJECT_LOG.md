@@ -763,3 +763,18 @@ Files touched:
 - `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
 Tests:
 - Not run.
+
+## 2025-12-23 (Release 1.7.2)
+Date: 2025-12-23
+Intent:
+- Bump release references and rebuild the Windows EXE after merging to main.
+Status: Done
+User-facing changes:
+- Updated README to point at the 1.7.2 executable.
+Internal changes:
+- Updated PyInstaller spec name, built the 1.7.2 EXE, and archived the 1.7.1 artifact.
+Files touched:
+- `README.md`, `docs/FEATURES.md`, `delete_real_duplicates.spec`
+- `build/`, `dist/delete_real_duplicates-1.7.2.exe`, `archive/delete_real_duplicates-1.7.1.exe`, `docs/PROJECT_LOG.md`
+Tests:
+- `python -m PyInstaller delete_real_duplicates.spec`
