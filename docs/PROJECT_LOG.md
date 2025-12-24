@@ -1121,3 +1121,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.11.exe`, `archive/delete_real_duplicates-1.7.10.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-24 (Start - Confirm-delete dialog text accuracy)
+Date: 2025-12-24
+Intent:
+- Adjust confirm-delete dialog copy to reflect the actual keep selection.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-24 (Done - Confirm-delete dialog text accuracy)
+Date: 2025-12-24
+Intent:
+- Adjust confirm-delete dialog copy to reflect the actual keep selection.
+Status: Done
+User-facing changes:
+- Confirm deletion dialog now states that the selected keep file in each group will be kept.
+Internal changes:
+- Updated confirmation text in the standard delete flow to avoid "newest" wording.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

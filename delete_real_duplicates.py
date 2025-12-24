@@ -1660,7 +1660,7 @@ class DuplicateCleanerUI:
         confirm = self._confirm(
             "Confirm deletion",
             f"This will delete {len(to_delete)} file(s), freeing ~{human_size(total_size)}.\n"
-            f"The most recent copy in each group will be kept.\n\n"
+            "The selected keep file in each group will be kept.\n\n"
             "Proceed?",
         )
         if not confirm:
