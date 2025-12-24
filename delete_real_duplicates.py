@@ -308,6 +308,7 @@ class DuplicateCleanerUI:
         self._last_view_mode: str | None = None
         self._last_scan_mode: str | None = None
         self._last_scan_settings: Dict[str, object] = {}
+        self._closing = False
 
         self._build_layout()
         self._load_settings()
@@ -776,7 +777,23 @@ class DuplicateCleanerUI:
         except Exception:
             pass
 
+    def _ui_alive(self) -> bool:
+        try:
+            return not self._closing and bool(self.root.winfo_exists())
+        except tk.TclError:
+            return False
+
+    def _safe_after(self, delay_ms: int, callback) -> str | None:
+        if not self._ui_alive():
+            return None
+        try:
+            return self.root.after(delay_ms, callback)
+        except Exception:
+            return None
+
     def _on_close(self) -> None:
+        self._closing = True
+        self._stop_scan_spinner()
         self._save_settings()
         self.root.destroy()
 
@@ -785,9 +802,11 @@ class DuplicateCleanerUI:
         self._spinner_idx = 0
 
         def tick() -> None:
+            if not self._ui_alive():
+                return
             self.scan_btn.configure(text=f"Scanning{dots[self._spinner_idx]}")
             self._spinner_idx = (self._spinner_idx + 1) % len(dots)
-            self._spinner_job = self.root.after(200, tick)
+            self._spinner_job = self._safe_after(200, tick)
 
         tick()
 
@@ -798,8 +817,10 @@ class DuplicateCleanerUI:
             except Exception:
                 pass
             self._spinner_job = None
-        self.scan_btn.configure(text="Scan")
         self._spinner_idx = 0
+        if not self._ui_alive():
+            return
+        self.scan_btn.configure(text="Scan")
 
     def _remember_folder(self, folder: Path) -> None:
         """Track recently used folders for quick selection."""
@@ -960,12 +981,12 @@ class DuplicateCleanerUI:
                 hash_max_bytes=hash_limit,
             )
         except Exception as exc:  # pragma: no cover - UI/IO bound
-            self.root.after(0, lambda: self._error("Scan failed", str(exc)))
-            self.root.after(0, self._finish_scan)
+            self._safe_after(0, lambda: self._error("Scan failed", str(exc)))
+            self._safe_after(0, self._finish_scan)
             return
 
         elapsed = (_dt.datetime.now() - start).total_seconds()
-        self.root.after(0, lambda: self._on_scan_complete(folder, days, duplicates, hash_skipped, scan_skipped, elapsed))
+        self._safe_after(0, lambda: self._on_scan_complete(folder, days, duplicates, hash_skipped, scan_skipped, elapsed))
 
     def _on_scan_complete(
         self,
@@ -976,6 +997,8 @@ class DuplicateCleanerUI:
         scan_skipped: int,
         elapsed_seconds: float,
     ) -> None:
+        if not self._ui_alive():
+            return
         self.duplicates = duplicates
         self._last_hash_skipped = hash_skipped
         self._last_scan_skipped = scan_skipped
@@ -997,8 +1020,10 @@ class DuplicateCleanerUI:
 
     def _finish_scan(self) -> None:
         self._scanning = False
-        self.scan_btn.configure(state="normal")
         self._stop_scan_spinner()
+        if not self._ui_alive():
+            return
+        self.scan_btn.configure(state="normal")
 
     def _build_summary_text(self, days: int) -> Tuple[str, str]:
         scan_time_text = ""

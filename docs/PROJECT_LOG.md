@@ -1162,3 +1162,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.12.exe`, `archive/delete_real_duplicates-1.7.11.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-25 (Start - Guard UI callbacks)
+Date: 2025-12-25
+Intent:
+- Guard UI callbacks after window close during scans to avoid TclError when closing mid-scan.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-25 (Done - Guard UI callbacks)
+Date: 2025-12-25
+Intent:
+- Guard UI callbacks after window close during scans to avoid TclError when closing mid-scan.
+Status: Done
+User-facing changes:
+- Closing the window mid-scan no longer triggers TclError from pending UI callbacks.
+Internal changes:
+- Added a closing flag and guarded after callbacks/spinner updates before touching UI widgets.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
