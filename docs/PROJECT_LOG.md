@@ -1203,3 +1203,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.13.exe`, `archive/delete_real_duplicates-1.7.12.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-25 (Start - Debounce filter re-rendering)
+Date: 2025-12-25
+Intent:
+- Debounce filter re-rendering to keep the results table responsive on large result sets.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-25 (Done - Debounce filter re-rendering)
+Date: 2025-12-25
+Intent:
+- Debounce filter re-rendering to keep the results table responsive on large result sets.
+Status: Done
+User-facing changes:
+- Filter input now applies after a short delay to keep large result sets responsive while typing.
+Internal changes:
+- Added a debounced filter render with pending jobs canceled on new keystrokes.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.

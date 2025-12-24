@@ -300,6 +300,8 @@ class DuplicateCleanerUI:
         self._last_sort_column: str | None = None
         self._last_sort_direction: bool = True  # True = ascending
         self._spinner_job: str | None = None
+        self._filter_job: str | None = None
+        self._filter_debounce_ms = 200
         self._actions_enabled = False
         self._selection_updating = False
         self._message_wrap_width = 0
@@ -524,7 +526,7 @@ class DuplicateCleanerUI:
         ttk.Label(self.filter_frame, text="Filter (name or folder contains):").grid(row=0, column=0, sticky="w")
         self.filter_entry = ttk.Entry(self.filter_frame, textvariable=self.filter_var, width=40, state="disabled")
         self.filter_entry.grid(row=0, column=1, sticky="ew", padx=(4, 0))
-        self.filter_var.trace_add("write", lambda *_: self._apply_filter())
+        self.filter_var.trace_add("write", self._on_filter_change)
         register_advanced(self.filter_frame)
 
         self.tree_frame = ttk.Frame(frm)
@@ -791,9 +793,18 @@ class DuplicateCleanerUI:
         except Exception:
             return None
 
+    def _cancel_filter_job(self) -> None:
+        if self._filter_job:
+            try:
+                self.root.after_cancel(self._filter_job)
+            except Exception:
+                pass
+            self._filter_job = None
+
     def _on_close(self) -> None:
         self._closing = True
         self._stop_scan_spinner()
+        self._cancel_filter_job()
         self._save_settings()
         self.root.destroy()
 
@@ -1230,7 +1241,12 @@ class DuplicateCleanerUI:
         text = needle.casefold()
         return text in path.name.casefold() or text in str(path.parent).casefold()
 
+    def _on_filter_change(self, *_args) -> None:
+        self._cancel_filter_job()
+        self._filter_job = self._safe_after(self._filter_debounce_ms, self._apply_filter)
+
     def _apply_filter(self) -> None:
+        self._filter_job = None
         if not self.duplicates or self._last_folder is None:
             return
         self._render_results(self._last_folder, self._last_days)
@@ -1433,6 +1449,8 @@ class DuplicateCleanerUI:
         self._update_selection_status()
 
     def _set_filter_enabled(self, enabled: bool) -> None:
+        if not enabled:
+            self._cancel_filter_job()
         self.filter_entry.configure(state="normal" if enabled else "disabled")
 
     def _center_window(self, win: tk.Toplevel) -> None:
