@@ -1,4 +1,4 @@
-# Features
+﻿# Features
 
 ## Scanning and Matching
 
@@ -86,6 +86,7 @@
 
 ### Windows executable packaging
 - Description: PyInstaller spec and the current versioned EXE are committed in `dist/`, with older artifacts archived.
-- Where: `delete_real_duplicates.spec`, `dist/delete_real_duplicates-1.7.12.exe`, `archive/`
+- Where: `delete_real_duplicates.spec`, `dist/delete_real_duplicates-1.7.13.exe`, `archive/`
 - Status: Done
-- How to verify: Run `dist/delete_real_duplicates-1.7.12.exe` or `python delete_real_duplicates.py`.
+- How to verify: Run `dist/delete_real_duplicates-1.7.13.exe` or `python delete_real_duplicates.py`.
+

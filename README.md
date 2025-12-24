@@ -1,20 +1,20 @@
-# Delete Real Duplicates
+﻿# Delete Real Duplicates
 
 Desktop utility to find and remove real duplicate files with a guided UI. It groups duplicates, lets you choose which copy to keep, and can auto-skip prompts when duplicates live in the same folder.
 
 ## Latest build
-- Windows executable (no Python needed): `dist/delete_real_duplicates-1.7.12.exe`  
+- Windows executable (no Python needed): `dist/delete_real_duplicates-1.7.13.exe`  
   Built from the current codebase (PyInstaller one-file, windowed). Run it directly or share the EXE.
 
 ## Run options
-1) **Executable:** double-click `dist/delete_real_duplicates-1.7.12.exe` (or run from a terminal).
+1) **Executable:** double-click `dist/delete_real_duplicates-1.7.13.exe` (or run from a terminal).
 2) **Source (Python 3.9+):**
    ```bash
    python -m pip install -r requirements.txt  # installs optional send2trash
    python delete_real_duplicates.py
    ```
 
-## Core features (v1.7.12)
+## Core features (v1.7.13)
 - Duplicate criteria toggles: content hash (SHA-256), size, file name, modified time.
 - View modes: Simplified (default) hides advanced controls, uses fixed defaults, and auto-deletes after confirmation with a Review in Advanced option; Advanced shows the full results table.
 - Hash size cap: optionally skip hashing very large files while still comparing them with other checks.
@@ -63,3 +63,4 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
 - Content hash reads the whole file; size is a cheap prefilter. Accuracy can drop if you enable the hash size cap because large files are compared without hashes.
 - Settings file: `.duplicate_cleaner_settings.json` lives alongside the app.
 - Built for Windows; Tkinter is bundled in the EXE. Running from source requires Tkinter (included with standard Python installers).***
+
