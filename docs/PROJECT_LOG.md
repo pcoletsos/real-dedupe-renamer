@@ -1229,3 +1229,18 @@ Files touched:
 - `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
 Tests:
 - Not run.
+
+## 2025-12-25 (Release 1.7.14)
+Date: 2025-12-25
+Intent:
+- Bump release references and rebuild the Windows EXE after merging to main.
+Status: Done
+User-facing changes:
+- Updated README to point at the 1.7.14 executable.
+Internal changes:
+- Updated PyInstaller spec name, built the 1.7.14 EXE, and archived the 1.7.13 artifact.
+Files touched:
+- `README.md`, `delete_real_duplicates.spec`
+- `build/`, `dist/delete_real_duplicates-1.7.14.exe`, `archive/delete_real_duplicates-1.7.13.exe`, `docs/PROJECT_LOG.md`
+Tests:
+- `python -m PyInstaller delete_real_duplicates.spec`
