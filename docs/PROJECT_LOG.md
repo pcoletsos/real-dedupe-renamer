@@ -1244,3 +1244,29 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.14.exe`, `archive/delete_real_duplicates-1.7.13.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2025-12-25 (Start - Safer size calculation before delete)
+Date: 2025-12-25
+Intent:
+- Avoid crashes if files disappear between scan and delete by treating missing sizes as 0.
+Status: In Progress
+Planned files:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (start entry).
+
+## 2025-12-25 (Done - Safer size calculation before delete)
+Date: 2025-12-25
+Intent:
+- Avoid crashes if files disappear between scan and delete by treating missing sizes as 0.
+Status: Done
+User-facing changes:
+- Delete confirmations no longer crash if a file disappears between scan and delete; missing sizes are treated as 0.
+Internal changes:
+- Added a safe size helper for pre-delete size estimates used in delete flows.
+Files touched:
+- `delete_real_duplicates.py`
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run.
