@@ -1,18 +1,29 @@
-﻿# Delete Real Duplicates
+# Delete Real Duplicates
 
 Desktop utility to find and remove real duplicate files with a guided UI. It groups duplicates, lets you choose which copy to keep, and can auto-skip prompts when duplicates live in the same folder.
 
-## Latest build
-- Windows executable (no Python needed): `dist/delete_real_duplicates-1.7.15.exe`  
-  Built from the current codebase (PyInstaller one-file, windowed). Run it directly or share the EXE.
+## Download
 
-## Run options
-1) **Executable:** double-click `dist/delete_real_duplicates-1.7.15.exe` (or run from a terminal).
-2) **Source (Python 3.9+):**
-   ```bash
-   python -m pip install -r requirements.txt  # installs optional send2trash
-   python delete_real_duplicates.py
-   ```
+Grab the latest Windows executable from [GitHub Releases](https://github.com/TsoliasPN/delete-real-duplicates/releases) — no Python needed. Run it directly or share the EXE.
+
+## Run from source (Python 3.9+)
+
+```bash
+python -m pip install -r requirements.txt  # installs optional send2trash
+python delete_real_duplicates.py
+```
+
+## Build the EXE yourself
+
+Requirements: Python 3.9+, PyInstaller.
+
+```bash
+pip install pyinstaller
+pip install -r requirements.txt
+pyinstaller delete_real_duplicates.spec
+```
+
+The output lands in `dist/delete_real_duplicates-<version>.exe`. To change the version, update `__version__` in `delete_real_duplicates.py` and the `name` field in `delete_real_duplicates.spec`.
 
 ## Core features (v1.7.15)
 - Duplicate criteria toggles: content hash (SHA-256), size, file name, modified time.
@@ -20,14 +31,14 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
 - Hash size cap: optionally skip hashing very large files while still comparing them with other checks.
 - Same-folder fast path: if all copies are in one folder, auto-keep the newest and skip the keep-choice dialog.
 - Keep-choice dialog: per-row KEEP/DELETE status column with legend, plus a toggle to show full path + filename (folders only by default).
-- Results table: sortable columns, collapsible groups, filter by name/folder, double-click to open a file’s folder, right-click to copy a row/group.
+- Results table: sortable columns, collapsible groups, filter by name/folder, double-click to open a file's folder, right-click to copy a row/group.
 - Delete selected: multi-select rows in the results table; selecting a group row auto-selects its child files; full-group selections warn before deleting all copies.
 - Reports/exports: copy the full report to clipboard or export CSV.
 - UI gating: copy/export/collapse/expand and filter enable only when results exist.
 - Progress: Scan button shows animated progress during scans.
 - Action cues: delete buttons are tinted red, and Scan uses a magnifying glass with a green tint.
 - Settings persistence: last folder, days, criteria, hash limit, same-folder toggle, and keep-dialog display preference saved to `.duplicate_cleaner_settings.json`.
-- Help: use the ? icon to access “How to use” and “Optional checks”.
+- Help: use the ? icon to access "How to use" and "Optional checks".
 - Dialogs center on the app window for confirmations/errors/info.
 
 ## UI guide
@@ -55,12 +66,11 @@ Desktop utility to find and remove real duplicate files with a guided UI. It gro
    - Confirmation shows file count and estimated space freed.
    - Deletions go to Recycle Bin when `send2trash` is available; otherwise, files are removed directly.
 9) **Help:** click the ? icon to open "How to use" and "Optional checks" without a menu bar.
-9) **Reports/Exports:**
+10) **Reports/Exports:**
    - "Copy report" puts a text summary on the clipboard.
    - "Export CSV" saves file, folder, modified, size (bytes/human), and criteria.
 
 ## Notes
 - Content hash reads the whole file; size is a cheap prefilter. Accuracy can drop if you enable the hash size cap because large files are compared without hashes.
 - Settings file: `.duplicate_cleaner_settings.json` lives alongside the app.
-- Built for Windows; Tkinter is bundled in the EXE. Running from source requires Tkinter (included with standard Python installers).***
-
+- Built for Windows; Tkinter is bundled in the EXE. Running from source requires Tkinter (included with standard Python installers).

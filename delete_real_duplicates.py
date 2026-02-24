@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+__version__ = "1.7.15"
+
 import datetime as _dt
 import hashlib
 import os
@@ -241,7 +243,7 @@ def delete_files(paths: Iterable[Path], *, on_error=None) -> None:
 class DuplicateCleanerUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        root.title("Delete Real Duplicates")
+        root.title(f"Delete Real Duplicates v{__version__}")
 
         self.style = ttk.Style(root)
         if self.style.theme_use() in {"vista", "xpnative", "winnative"}:
