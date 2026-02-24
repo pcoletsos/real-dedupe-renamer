@@ -4,3 +4,11 @@ __pycache__/
 *.log
 .DS_Store
 .duplicate_cleaner_settings.json
+
+# PyInstaller build artifacts
+build/
+
+# Release binaries — use GitHub Releases instead
+archive/
+dist/
+*.zip

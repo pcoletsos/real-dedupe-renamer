@@ -20,7 +20,22 @@ except ImportError as exc:  # pragma: no cover - tkinter is standard but allow c
 
 
 FileEntry = Tuple[Path, int, float]  # path, size, modified timestamp
-SETTINGS_PATH = Path.cwd() / ".duplicate_cleaner_settings.json"
+
+
+def _app_dir() -> Path:
+    """Return the directory beside the running executable or script.
+
+    When packaged with PyInstaller the settings file lives next to the
+    ``.exe``.  When running from source it lives next to the ``.py`` file.
+    Using this instead of ``Path.cwd()`` ensures settings are found
+    regardless of the working directory (e.g. launched from a shortcut).
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+SETTINGS_PATH = _app_dir() / ".duplicate_cleaner_settings.json"
 SIMPLIFIED_DEFAULTS = {
     "days": 7,
     "use_hash": True,
