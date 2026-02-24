@@ -20,7 +20,22 @@ except ImportError as exc:  # pragma: no cover - tkinter is standard but allow c
 
 
 FileEntry = Tuple[Path, int, float]  # path, size, modified timestamp
-SETTINGS_PATH = Path.cwd() / ".duplicate_cleaner_settings.json"
+
+
+def _app_dir() -> Path:
+    """Return the directory beside the running executable or script.
+
+    When packaged with PyInstaller the settings file lives next to the
+    ``.exe``.  When running from source it lives next to the ``.py`` file.
+    Using this instead of ``Path.cwd()`` ensures settings are found
+    regardless of the working directory (e.g. launched from a shortcut).
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+SETTINGS_PATH = _app_dir() / ".duplicate_cleaner_settings.json"
 SIMPLIFIED_DEFAULTS = {
     "days": 7,
     "use_hash": True,
@@ -77,6 +92,13 @@ def human_size(num_bytes: int) -> str:
             return f"{size:.2f} {unit}"
         size /= 1024
     return f"{num_bytes} B"
+
+
+def _safe_path_size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
 
 
 def gather_recent_files(
@@ -1166,7 +1188,7 @@ class DuplicateCleanerUI:
         if not to_delete:
             return
 
-        total_size = sum(path.stat().st_size for path in to_delete if path.exists())
+        total_size = sum(_safe_path_size(path) for path in to_delete)
         rename_note = ""
         if self.rename_kept_enabled.get():
             rename_note = "\nKept files will be renamed to name_YYYY-MM-DD_HH-MM-SS_###.ext."
@@ -1637,7 +1659,7 @@ class DuplicateCleanerUI:
             self._info("Nothing to delete", "No selected files were found in the results.")
             return
 
-        total_size = sum(path.stat().st_size for path in to_delete if path.exists())
+        total_size = sum(_safe_path_size(path) for path in to_delete)
         confirm = self._confirm(
             "Confirm deletion",
             f"This will delete {len(to_delete)} selected file(s), freeing ~{human_size(total_size)}.\n"
@@ -1695,7 +1717,7 @@ class DuplicateCleanerUI:
                 else:
                     to_keep.append(path)
 
-        total_size = sum(path.stat().st_size for path in to_delete if path.exists())
+        total_size = sum(_safe_path_size(path) for path in to_delete)
         if not to_delete:
             self._info("Nothing to delete", "No duplicate files are marked for deletion.")
             return
