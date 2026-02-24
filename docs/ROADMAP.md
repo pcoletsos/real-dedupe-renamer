@@ -8,46 +8,75 @@
 
 Status tags: [Planned], [In Progress], [Paused], [Blocked], [Abandoned], [Done]
 
-## Now
-- [Done] Enlarge help icon to 16px and align top-right. User value: clearer help affordance without clutter. Technical approach: render the SVG-based icon at 16px and align it to the top-right of the layout grid. Effort: XS. Dependencies: none. Risks: minor spacing shifts. Result: help icon renders at 16px and sits tighter to the top-right. Tests: not run.
-- [Done] Use SVG help icon for rendering. User value: cleaner help icon that matches the provided SVG. Technical approach: draw the SVG-based icon with a small canvas and bundle the SVG for sizing. Effort: XS. Dependencies: none. Risks: minor theme mismatch for icon colors. Result: help icon now matches the SVG styling. Tests: not run.
-- [Done] Add help icon PNG asset. User value: discreet help icon looks like standard app help affordance. Technical approach: add 12/14/16px filled-circle ? PNGs and use 14px by default. Effort: XS. Dependencies: none. Risks: asset bundling in PyInstaller. Result: help icon uses a PNG asset with size variants. Tests: not run.
-- [Done] Reduce top padding from help icon header. User value: remove wasted vertical space while keeping the help icon top-right. Technical approach: move the help icon into the main grid row and remove the extra header frame. Effort: XS. Dependencies: none. Risks: minor layout shifts. Result: help icon sits top-right without extra header space. Tests: not run.
-- [Done] Help icon moved to top-right. User value: discreet access without cluttering primary controls. Technical approach: move the ? icon to a top-right header area and make it a minimal clickable label. Effort: XS. Dependencies: none. Risks: discoverability if too subtle. Result: help is now a small top-right icon link. Tests: not run.
-- [Done] Discreet help icon in top-right. User value: access help without visual clutter. Technical approach: replace the Help button with a question-mark icon aligned to the top-right that opens the help menu. Effort: XS. Dependencies: none. Risks: discoverability if the icon is too subtle. Result: Help is now a ? icon on the top-right. Tests: not run.
-- [Done] Help access without menu bar. User value: reclaim vertical space while keeping help easy to find. Technical approach: remove the menubar and add a Help button that opens the existing How to use/Optional checks dialogs. Effort: XS. Dependencies: none. Risks: discoverability if button placement is unclear. Result: Help button replaces the menubar without losing help access. Tests: not run.
-- [Done] Status box border continuity. User value: clean, uninterrupted status panel borders. Technical approach: adjust the status panel layout to avoid broken frame lines and ensure consistent borders. Effort: XS. Dependencies: none. Risks: minor layout changes. Result: status panel now uses a framed box with continuous borders. Tests: not run.
-- [Done] Simplified confirm dialog layout: Cancel on left, Review in Advanced separated below. User value: reduce confusion in destructive confirmations. Technical approach: custom simplified confirm dialog with a primary button row and a separate review action below. Effort: XS. Dependencies: none. Risks: minor layout regressions. Result: simplified confirm now shows Cancel on the left with Review in Advanced in a separate row. Tests: not run.
-- [Done] Move confirm-delete Cancel button to bottom-left. User value: clearer safe action placement in the confirm dialog. Technical approach: adjust confirm dialog button layout so Cancel acknowledges from the left. Effort: XS. Dependencies: none. Risks: minor UI consistency changes. Result: cancel action now sits on the left in confirm dialogs. Tests: not run.
-- [Done] Add simplified view alternative (keep advanced view). User value: quick scan-and-clean with minimal controls. Technical approach: add a mode switch; simplified view hides advanced controls and uses defaults: hash-only, last 7 days, hash limit 500 MB, include subfolders, no name prefix, skip keep-choice and rename kept enabled; no results table; auto-delete duplicates while keeping newest with a clear confirmation. Effort: L. Dependencies: UX decision for mode switch and safety confirm. Risks: accidental deletes if defaults feel too aggressive. Result: added a view toggle with a simplified mode that applies fixed defaults, auto-deletes after a confirmation with a Review in Advanced option, and hides the results table. Tests: not run.
-- [Done] UI layout audit + optimization. User value: reduce visual clutter, improve alignment/consistency, and prevent layout shifts from long messages. Technical approach: review layout for misaligned/different-sized buttons, overly long log/summary text, and empty spacing; propose tweaks such as consistent button sizing, dedicated message area with wrapping, and tighter spacing. Effort: M. Dependencies: none. Risks: UI polish changes could affect muscle memory. Result: full-group confirm dialog uses matching button heights with a left-aligned review action and smaller dialog button styling. Tests: not run.
-- [Done] Group selection selects child rows + action button color cues + scan icon. User value: faster multi-row selection, clearer destructive-action cues, and a more discoverable scan button. Technical approach: expand Treeview selection when a group row is selected, tint delete actions red and scan green, and add a magnifying glass icon to Scan. Effort: S. Dependencies: ttk theme support for button colors. Risks: theme differences in button tinting. Result: group selection auto-selects child rows, delete buttons are tinted red, and Scan shows a magnifying glass with a green tint. Tests: not run.
-- [Done] In-table selection + ƒ\?oDelete selectedƒ\?? workflow. User value: act on large result sets by selecting specific rows (e.g., sort by size and delete the largest duplicates immediately) without opening the keep-choice dialog for all groups. Technical approach: use native Treeview multi-select (no checkbox column), add a dedicated ƒ\?oDelete selectedƒ\?? button near the table actions plus a right-click context menu action for selected rows, and show a small ƒ\?oN files selected / M groups affectedƒ\?? indicator; ensure safe behavior for mixed group selections and when the selection includes all copies in a group, show a blocking confirm on delete with wording: Title ƒ\?oAll Copies Selectedƒ\??, body ƒ\?oYour selection includes every copy in the groups listed below. Continuing will delete all copies in those groups.ƒ\??, list label ƒ\?oFully selected groups:ƒ\??, buttons ƒ\?oReview Selectionƒ\?? (default) and ƒ\?oDelete Selected (Including Full Groups)ƒ\??. Effort: M. Dependencies: selection model should align with existing keep-choice dialog behavior. Risks: accidental full-group deletes and unclear selection state in large lists. Result: added Treeview multi-select, Delete selected actions (button + context menu), selection indicator, and full-group delete confirmation. Tests: not run.
-- [Done] Align README and release artifacts (README references v1.1.0 while `dist/` contains 1.2.0/1.3.0). User value: accurate install/run guidance. Technical approach: update README, pick the current EXE/zip naming, and archive or remove older artifacts. Effort: S. Dependencies: decide the target version. Risks: removing files that users still rely on. Result: README now points to 1.4.0, older artifacts archived, new EXE built.
-- [Done] Decide how to handle `.duplicate_cleaner_settings.json` files committed in repo and `dist/`. User value: avoid shipping user-specific paths and keep the repo clean. Technical approach: add runtime settings to `.gitignore` and provide a sanitized sample config for builds. Effort: S. Dependencies: packaging workflow agreement. Risks: builds may expect the committed settings file. Result: removed tracked settings files, added a sanitized sample, ignored runtime settings; Tests: not run.
-- [Done] Hash size cap behavior for large files. User value: avoid silently skipping duplicates when hashing is capped. Technical approach: when size > cap, still group by non-hash criteria (size/name/mtime) or report skipped files in the UI. Effort: S. Dependencies: decision on desired behavior. Risks: slower scans if fallback grouping is enabled. Result: large files skip hashing but still group by other selected criteria with clearer UI messaging.
-- [Done] Scan error handling in `gather_recent_files`. User value: scans do not fail on a single unreadable file. Technical approach: catch per-file `OSError`, track skipped count, and surface it in the summary. Effort: S. Dependencies: none. Risks: need clear messaging to avoid confusion. Result: unreadable files are skipped, counted, and reported in the scan summary.
-- [Done] mtime precision when used as a criterion. User value: fewer false positives when files differ only by sub-second times. Technical approach: use `st_mtime_ns` or the full float; keep display formatting unchanged. Effort: S. Dependencies: none. Risks: small changes to grouping keys. Result: grouping uses full timestamp precision while display formatting stays the same. Tests: not run. Files: `delete_real_duplicates.py`, `docs/FEATURES.md`.
-- [Done] Visual keep/delete indicators in the keep-choice dialog. User value: reduce mistakes by making keep vs delete choices obvious. Technical approach: add per-row state badges with icon + text and optional color accents; avoid color-only signals (include labels/legend), keep contrast high, and sync with the current selection. Effort: S. Dependencies: decide indicator style and Tkinter styling approach. Risks: color/theme accessibility and visual clutter in dense groups. Result: added a KEEP/DELETE status column with legend synced to the selection. Tests: not run. Files: `delete_real_duplicates.py`, `docs/FEATURES.md`.
-- [Done] Keep-choice dialog hides filenames by default with a toggle to show full path+filename. User value: reduce visual clutter in the keep/delete popup for long names. Technical approach: show directory path only (omit filename), add a dialog toggle to show full path+filename (current behavior), and persist the setting in `.duplicate_cleaner_settings.json`. Effort: S. Dependencies: confirm toggle placement (dialog-only vs global setting). Risks: users might miss filenames without a clear toggle label. Result: dialog defaults to folder-only display with a toggle to show full paths, and the setting persists.
-- [Done] Confirm-delete dialog text accuracy. User value: avoid misleading messaging when a user chooses a non-newest file to keep. Technical approach: adjust confirmation copy to reflect actual selections. Effort: XS. Dependencies: none. Risks: none. Result: confirm delete copy now reflects the selected keep file in each group. Tests: not run.
-- [Done] Guard UI callbacks after window close during scans. User value: avoid `TclError` if the window closes mid-scan. Technical approach: add a shutdown flag or `winfo_exists()` checks before `after` callbacks. Effort: S. Dependencies: none. Risks: none. Result: UI callbacks skip updates after close to avoid `TclError` during scans. Tests: not run.
-- [Done] Debounce filter re-rendering. User value: responsive UI on large result sets. Technical approach: add a short `after` delay and cancel pending filter renders on keystroke. Effort: S. Dependencies: none. Risks: minor UI behavior change. Result: filter re-rendering is debounced with pending jobs canceled per keystroke. Tests: not run.
-- [Done] Safer size calculation before delete. User value: avoid crashes if files disappear between scan and delete. Technical approach: wrap `path.stat()` in try/except and treat missing files as size 0. Effort: XS. Dependencies: none. Risks: none. Result: size estimates skip missing files instead of crashing. Tests: not run.
+---
 
-## Next
-- [Planned] Reduce scan memory when hashing is off. User value: lower RAM usage on large folders. Technical approach: let `find_duplicate_groups` stream inputs when `use_hash` is False; avoid `list(entries)` in `_run_scan_thread`. Effort: M. Dependencies: refactor grouping logic. Risks: behavior changes in edge cases if not tested.
-- [Planned] Faster traversal with `os.scandir`/`os.walk`. User value: faster scans on large trees. Technical approach: replace `Path.rglob` with `os.walk` and reuse `entry.stat()` to avoid double stat calls. Effort: M. Dependencies: refactor `gather_recent_files`. Risks: path handling differences on Windows.
-- [Planned] Add automated tests for core matching logic. User value: prevent regressions in `gather_recent_files` and `find_duplicate_groups`. Technical approach: introduce unit tests with fixture files and temp directories. Effort: M. Dependencies: test data harness. Risks: file-system tests can be flaky on CI without careful setup.
-- [Planned] Scrollable keep-choice dialog for large duplicate sets. User value: UI remains usable when there are many groups. Technical approach: add a scrollable container or stepper per group. Effort: M. Dependencies: Tkinter layout work. Risks: increased UI complexity.
-- [Planned] Extract core scan/grouping logic into a non-UI module. User value: better testability and simpler UI class. Technical approach: move scan/hash/group functions into a separate module with clean inputs/outputs. Effort: M. Dependencies: update imports and tests. Risks: refactor bugs.
+## Phase 1 â€” Stabilize the Python codebase (Now)
 
-## Later
-- [Planned] Optional hashing thread pool. User value: faster hashing on SSDs and multi-core CPUs. Technical approach: parallelize hashing within size buckets with a bounded executor. Effort: L. Dependencies: careful UI progress handling. Risks: IO contention and increased CPU use.
-- [Planned] Implement optional checks listed in the Help dialog (MIME/type, media metadata, embedded checksums). User value: tighter duplicate detection without full hashing. Technical approach: extend grouping keys and add optional dependencies (e.g., python-magic, pillow, mutagen). Effort: L. Dependencies: new libraries and UI configuration. Risks: performance cost and platform-specific edge cases.
+Goal: Make the current Python app modular, tested, and maintainable. This phase produces the behavioral specification that the Tauri rewrite must satisfy.
+
+### Extract core module (D008)
+- [Planned] Extract core scan/grouping/delete logic into `core.py`. User value: better testability, simpler UI class, and a clear porting guide for the Rust rewrite. Technical approach: move `gather_recent_files`, `find_duplicate_groups`, `delete_files`, `_sha256`, `_normalize_name`, `_describe_key`, `human_size`, `_safe_path_size`, and `default_downloads_folder` into `core.py` with clean inputs/outputs; update `delete_real_duplicates.py` to import from `core`. Effort: M. Dependencies: none. Risks: refactor bugs â€” mitigate with manual testing before automated tests exist.
+
+### Add automated tests (D009)
+- [Planned] Add pytest tests for `core.py`. User value: prevent regressions and define the behavioral spec for the Rust rewrite. Technical approach: unit tests with temp directories for `gather_recent_files` (filtering by days, prefix, subfolders, error skipping), `find_duplicate_groups` (hash, size, name, mtime criteria, hash cap), and `delete_files` (send2trash and fallback paths). Effort: M. Dependencies: core module extraction. Risks: filesystem tests can be flaky â€” use `tmp_path` fixtures.
+
+### Add linting
+- [Planned] Add ruff linter with `pyproject.toml` config. User value: consistent code style, catch real bugs. Technical approach: add `pyproject.toml` with ruff rules, fix any existing violations. Effort: S. Dependencies: none. Risks: none.
+
+### Add CI pipeline
+- [Planned] Add GitHub Actions workflow: lint + test on push. User value: automated quality gate. Technical approach: single workflow file, runs ruff and pytest on Python 3.9+. Effort: S. Dependencies: tests and linting must exist first. Risks: none.
+
+### Version string management
+- [Planned] Wire `__version__` from `delete_real_duplicates.py` into the `.spec` file so there is one place to bump the version. User value: no more version drift between source and build config. Technical approach: read `__version__` in the spec file or use a shared constant. Effort: S. Dependencies: none. Risks: none.
+
+---
+
+## Phase 2 â€” Tauri v2 rewrite (Next)
+
+Goal: Rebuild the application as a Rust + Tauri v2 app with a modern web frontend. The Python tests from Phase 1 define the acceptance criteria. See D007 and D010 for architecture details.
+
+### Scaffold Tauri v2 project
+- [Planned] Initialize a Tauri v2 project with the chosen frontend framework (React or Svelte) and Tailwind CSS. User value: project skeleton ready for development. Technical approach: `npm create tauri-app`, configure Tailwind, verify dev build on Windows and macOS. Effort: S. Dependencies: Phase 1 completed (need the behavioral spec). Risks: Tauri v2 toolchain setup on both platforms.
+
+### Port core logic to Rust
+- [Planned] Implement `scanner.rs`, `hasher.rs`, `grouper.rs`, `deleter.rs`, `settings.rs` matching the behavior of `core.py`. User value: fast, correct backend. Technical approach: port each function using `walkdir` for traversal, `sha2` or `ring` for hashing, `rayon` for parallel hashing, and the `trash` crate for cross-platform recycle bin. Effort: L. Dependencies: Tauri scaffold. Risks: behavioral differences in edge cases â€” verify against Python test cases.
+  - Key Rust crates: `walkdir`, `sha2`, `rayon`, `trash`, `serde` + `serde_json` (settings).
+  - Parallel hashing within size buckets replaces the Python roadmap item "optional hashing thread pool" â€” it comes naturally with `rayon`.
+
+### Build frontend UI
+- [Planned] Implement the scan view, results table, keep-choice dialog, and settings panel. User value: modern, responsive, cross-platform UI. Technical approach: React or Svelte components with Tailwind CSS; call Rust backend via Tauri `invoke()` commands; support both Simplified and Advanced view modes. Effort: L. Dependencies: Rust backend commands available. Risks: UI/UX iteration may take multiple rounds.
+  - The results table should support: sortable columns, collapsible groups, inline filtering, multi-select, right-click context menu.
+  - The keep-choice dialog should support: per-row KEEP/DELETE indicators, show/hide full paths toggle, "Keep newest in all groups" shortcut.
+  - Scrollable keep-choice dialog for large duplicate sets (replaces the Python roadmap item for this).
+
+### Cross-platform packaging and release
+- [Planned] Configure Tauri builds for Windows (.msi/.exe) and macOS (.dmg/.app). User value: native installers for both platforms. Technical approach: Tauri's built-in bundler, GitHub Actions for CI/CD release builds. Effort: M. Dependencies: frontend and backend complete. Risks: code signing requirements on macOS.
+
+---
+
+## Phase 3 â€” Post-rewrite enhancements (Later)
+
+These items become feasible or easier after the Tauri rewrite.
+
+- [Planned] Optional checks: MIME/type, media metadata, embedded checksums. User value: tighter duplicate detection without full hashing. Technical approach: Rust crates for MIME detection, image/audio metadata. Effort: L. Dependencies: Tauri rewrite complete. Risks: platform-specific edge cases.
+- [Planned] Drag-and-drop folder selection. User value: faster folder picking. Technical approach: HTML5 drag-and-drop events in the frontend, pass path to Rust backend. Effort: S. Dependencies: Tauri frontend. Risks: none.
+- [Planned] Dark mode support. User value: comfortable use in low-light environments. Technical approach: Tailwind dark mode classes, respect OS preference via `prefers-color-scheme`. Effort: S. Dependencies: Tauri frontend. Risks: none.
+- [Planned] Progress reporting during scans. User value: see real-time file count and hashing progress. Technical approach: Tauri event system to stream progress from Rust to frontend. Effort: M. Dependencies: Tauri rewrite. Risks: none.
+
+---
+
+## Superseded Python-only items
+
+The following items from the original roadmap are superseded by the Tauri rewrite plan:
+
+- ~~Reduce scan memory when hashing is off~~ â€” will be addressed naturally in Rust with iterators and zero-copy patterns.
+- ~~Faster traversal with `os.scandir`/`os.walk`~~ â€” Rust's `walkdir` crate is faster than any Python approach.
+- ~~Optional hashing thread pool~~ â€” `rayon` parallelism in the Rust hasher replaces this.
+- ~~Scrollable keep-choice dialog~~ â€” the web frontend has native scrolling; no special work needed.
+
+---
 
 ## Pause / Abandon checklist
 - Update the item status and add a short reason.
 - Note any partial code paths and the next step needed to resume.
 - Record commands/tests run in `docs/PROJECT_LOG.md`.
-
