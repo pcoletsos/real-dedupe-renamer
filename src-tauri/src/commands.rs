@@ -34,7 +34,7 @@ pub fn cmd_open_folder(path: String) -> Result<(), String> {
 }
 
 /// Scan a folder for duplicate files.
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub fn cmd_scan(
     folder: String,
     days: u32,
