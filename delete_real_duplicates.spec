@@ -1,5 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+# Read __version__ from core.py so the EXE name stays in sync automatically.
+import importlib.util as _ilu
+
+_spec = _ilu.spec_from_file_location("core", "core.py")
+_core = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_core)
+_version = _core.__version__
 
 a = Analysis(
     ['delete_real_duplicates.py'],
@@ -24,7 +31,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='delete_real_duplicates-1.7.15',
+    name=f'delete_real_duplicates-{_version}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

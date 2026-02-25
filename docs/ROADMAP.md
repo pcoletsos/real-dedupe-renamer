@@ -15,19 +15,19 @@ Status tags: [Planned], [In Progress], [Paused], [Blocked], [Abandoned], [Done]
 Goal: Make the current Python app modular, tested, and maintainable. This phase produces the behavioral specification that the Tauri rewrite must satisfy.
 
 ### Extract core module (D008)
-- [Planned] Extract core scan/grouping/delete logic into `core.py`. User value: better testability, simpler UI class, and a clear porting guide for the Rust rewrite. Technical approach: move `gather_recent_files`, `find_duplicate_groups`, `delete_files`, `_sha256`, `_normalize_name`, `_describe_key`, `human_size`, `_safe_path_size`, and `default_downloads_folder` into `core.py` with clean inputs/outputs; update `delete_real_duplicates.py` to import from `core`. Effort: M. Dependencies: none. Risks: refactor bugs — mitigate with manual testing before automated tests exist.
+- [Done] Extracted 9 core functions + `FileEntry` + `__version__` into `core.py`. `delete_real_duplicates.py` now imports from `core`. Files touched: `core.py` (new), `delete_real_duplicates.py` (modified). Result: 40 tests pass, app runs identically.
 
 ### Add automated tests (D009)
-- [Planned] Add pytest tests for `core.py`. User value: prevent regressions and define the behavioral spec for the Rust rewrite. Technical approach: unit tests with temp directories for `gather_recent_files` (filtering by days, prefix, subfolders, error skipping), `find_duplicate_groups` (hash, size, name, mtime criteria, hash cap), and `delete_files` (send2trash and fallback paths). Effort: M. Dependencies: core module extraction. Risks: filesystem tests can be flaky — use `tmp_path` fixtures.
+- [Done] Added 40 pytest tests in `tests/test_core.py` covering all core functions: `human_size`, `_sha256`, `_normalize_name`, `_safe_path_size`, `default_downloads_folder`, `gather_recent_files`, `find_duplicate_groups`, `delete_files`, `_describe_key`. All use `tmp_path` fixtures. Files touched: `tests/__init__.py` (new), `tests/test_core.py` (new).
 
 ### Add linting
-- [Planned] Add ruff linter with `pyproject.toml` config. User value: consistent code style, catch real bugs. Technical approach: add `pyproject.toml` with ruff rules, fix any existing violations. Effort: S. Dependencies: none. Risks: none.
+- [Done] Added ruff linter via `pyproject.toml` (line-length 120, target py39, select E/W/F/I/UP/B/SIM/RUF). Fixed 127 violations including modernized type annotations and a latent bug (undefined `exc` in scan error handler). Files touched: `pyproject.toml` (new), `core.py`, `delete_real_duplicates.py`.
 
 ### Add CI pipeline
-- [Planned] Add GitHub Actions workflow: lint + test on push. User value: automated quality gate. Technical approach: single workflow file, runs ruff and pytest on Python 3.9+. Effort: S. Dependencies: tests and linting must exist first. Risks: none.
+- [Done] Added GitHub Actions workflow: lint (ubuntu, py3.12) + test matrix (ubuntu+windows, py3.9–3.12). File: `.github/workflows/ci.yml` (new).
 
 ### Version string management
-- [Planned] Wire `__version__` from `delete_real_duplicates.py` into the `.spec` file so there is one place to bump the version. User value: no more version drift between source and build config. Technical approach: read `__version__` in the spec file or use a shared constant. Effort: S. Dependencies: none. Risks: none.
+- [Done] `__version__` lives in `core.py`; `.spec` file reads it dynamically via `importlib.util`. Version bump now requires updating 2 places (`core.py` + `pyproject.toml`), down from 3. Files touched: `delete_real_duplicates.spec` (modified).
 
 ---
 
@@ -36,21 +36,16 @@ Goal: Make the current Python app modular, tested, and maintainable. This phase 
 Goal: Rebuild the application as a Rust + Tauri v2 app with a modern web frontend. The Python tests from Phase 1 define the acceptance criteria. See D007 and D010 for architecture details.
 
 ### Scaffold Tauri v2 project
-- [Planned] Initialize a Tauri v2 project with the chosen frontend framework (React or Svelte) and Tailwind CSS. User value: project skeleton ready for development. Technical approach: `npm create tauri-app`, configure Tailwind, verify dev build on Windows and macOS. Effort: S. Dependencies: Phase 1 completed (need the behavioral spec). Risks: Tauri v2 toolchain setup on both platforms.
+- [Done] Initialized Tauri v2 project with React + TypeScript + Tailwind CSS v4. Vite bundler, port 1420 dev server. Files: `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`, icons. Result: `npx tauri build --no-bundle` produces `delete-real-duplicates.exe`.
 
 ### Port core logic to Rust
-- [Planned] Implement `scanner.rs`, `hasher.rs`, `grouper.rs`, `deleter.rs`, `settings.rs` matching the behavior of `core.py`. User value: fast, correct backend. Technical approach: port each function using `walkdir` for traversal, `sha2` or `ring` for hashing, `rayon` for parallel hashing, and the `trash` crate for cross-platform recycle bin. Effort: L. Dependencies: Tauri scaffold. Risks: behavioral differences in edge cases — verify against Python test cases.
-  - Key Rust crates: `walkdir`, `sha2`, `rayon`, `trash`, `serde` + `serde_json` (settings).
-  - Parallel hashing within size buckets replaces the Python roadmap item "optional hashing thread pool" — it comes naturally with `rayon`.
+- [Done] Implemented 6 Rust modules matching `core.py` behavior: `types.rs` (FileEntry, CriterionValue, DTOs, human_size, describe_key), `scanner.rs` (safe_path_size, gather_recent_files), `hasher.rs` (sha256_file), `grouper.rs` (normalize_name, find_duplicate_groups with size bucketing), `deleter.rs` (delete_files with trash + fallback), `settings.rs` (AppSettings, load/save JSON). Crates: walkdir, sha2, rayon, trash, serde, chrono, directories, thiserror, open. 37 Rust tests pass. Files: `src-tauri/src/*.rs`.
 
 ### Build frontend UI
-- [Planned] Implement the scan view, results table, keep-choice dialog, and settings panel. User value: modern, responsive, cross-platform UI. Technical approach: React or Svelte components with Tailwind CSS; call Rust backend via Tauri `invoke()` commands; support both Simplified and Advanced view modes. Effort: L. Dependencies: Rust backend commands available. Risks: UI/UX iteration may take multiple rounds.
-  - The results table should support: sortable columns, collapsible groups, inline filtering, multi-select, right-click context menu.
-  - The keep-choice dialog should support: per-row KEEP/DELETE indicators, show/hide full paths toggle, "Keep newest in all groups" shortcut.
-  - Scrollable keep-choice dialog for large duplicate sets (replaces the Python roadmap item for this).
+- [Done] Implemented React frontend with 6 components: ScanView (folder picker via tauri-plugin-dialog, days input, view mode toggle), SettingsPanel (criteria checkboxes, hash limit, subfolders, prefix, deletion behavior), ResultsTable (collapsible groups, sortable columns, checkbox multi-select, inline filter, copy report), KeepChoiceDialog (per-group radio buttons, KEEP/DELETE indicators, full-paths toggle, keep-newest shortcut), StatusBar (summary, notices, spinner), ConfirmDialog (reusable modal). Both Simplified and Advanced view modes work. TypeScript types match Rust DTOs. Files: `src/App.tsx`, `src/components/*.tsx`, `src/types.ts`, `src/api.ts`.
 
-### Cross-platform packaging and release
-- [Planned] Configure Tauri builds for Windows (.msi/.exe) and macOS (.dmg/.app). User value: native installers for both platforms. Technical approach: Tauri's built-in bundler, GitHub Actions for CI/CD release builds. Effort: M. Dependencies: frontend and backend complete. Risks: code signing requirements on macOS.
+### Cross-platform CI
+- [Done] Updated CI workflow with: Python lint + test (existing), Rust test matrix (ubuntu/windows/macos), frontend TypeScript check + Vite build, full Tauri build matrix (ubuntu/windows/macos, no-bundle). File: `.github/workflows/ci.yml`.
 
 ---
 

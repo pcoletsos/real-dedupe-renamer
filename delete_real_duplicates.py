@@ -1,27 +1,33 @@
 from __future__ import annotations
 
-__version__ = "1.7.15"
-
-import datetime as _dt
-import hashlib
-import os
-import threading
+import contextlib
 import csv
+import datetime as _dt
 import json
+import os
 import sys
+import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+
+from core import (
+    FileEntry,
+    __version__,
+    _describe_key,
+    _safe_path_size,
+    default_downloads_folder,
+    delete_files,
+    find_duplicate_groups,
+    gather_recent_files,
+    human_size,
+)
 
 try:
     import tkinter as tk
-    from tkinter import filedialog, messagebox, ttk
     import tkinter.font as tkfont
+    from tkinter import filedialog, messagebox, ttk
 except ImportError as exc:  # pragma: no cover - tkinter is standard but allow clearer error.
     raise SystemExit("tkinter is required to run this tool.") from exc
-
-
-FileEntry = Tuple[Path, int, float]  # path, size, modified timestamp
 
 
 def _app_dir() -> Path:
@@ -70,174 +76,6 @@ def _load_help_icon_size(default: int = 14) -> int:
     except Exception:
         pass
     return default
-
-
-def default_downloads_folder() -> Path:
-    """Resolve a sensible default downloads folder."""
-    # Prefer the user's standard Downloads directory.
-    home = Path.home()
-    downloads = home / "Downloads"
-    if downloads.exists():
-        return downloads
-
-    # Fallback to a repo-local downloads folder (useful for testing).
-    repo_downloads = Path.cwd() / "downloads"
-    return repo_downloads if repo_downloads.exists() else Path.cwd()
-
-
-def human_size(num_bytes: int) -> str:
-    """Return a human friendly size string."""
-    units = ["B", "KB", "MB", "GB", "TB"]
-    size = float(num_bytes)
-    for unit in units:
-        if size < 1024 or unit == units[-1]:
-            return f"{size:.2f} {unit}"
-        size /= 1024
-    return f"{num_bytes} B"
-
-
-def _safe_path_size(path: Path) -> int:
-    try:
-        return path.stat().st_size
-    except OSError:
-        return 0
-
-
-def gather_recent_files(
-    folder: Path,
-    days_back: int,
-    *,
-    name_prefix: str | None = None,
-    include_subfolders: bool = True,
-) -> Tuple[List[FileEntry], int]:
-    """Collect files modified within the last `days_back` days (0 = all), returning entries and a skipped-error count."""
-    cutoff = None if days_back <= 0 else _dt.datetime.now().timestamp() - days_back * 24 * 3600
-    prefix = name_prefix.casefold() if name_prefix else None
-    iterator = folder.rglob("*") if include_subfolders else folder.glob("*")
-    entries: List[FileEntry] = []
-    skipped = 0
-    for path in iterator:
-        try:
-            if not path.is_file():
-                continue
-            if prefix and not path.name.casefold().startswith(prefix):
-                continue
-            stat = path.stat()
-        except OSError:
-            skipped += 1
-            continue
-        if cutoff is None or stat.st_mtime >= cutoff:
-            entries.append((path, stat.st_size, stat.st_mtime))
-    return entries, skipped
-
-
-def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
-    """Return the SHA-256 hex digest for a file (streamed to handle large files)."""
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(chunk_size), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _normalize_name(name: str) -> str:
-    """Normalize file name for comparison (case-insensitive on Windows)."""
-    return name.casefold() if os.name == "nt" else name
-
-
-def _describe_key(key: Tuple[Tuple[str, object], ...]) -> str:
-    """Format a human-readable description of the chosen duplicate criteria."""
-    parts: List[str] = []
-    for name, value in key:
-        if name == "hash":
-            parts.append(f"sha256 {str(value)[:8]}...")
-        elif name == "size":
-            parts.append(f"size {human_size(int(value))}")
-        elif name == "name":
-            parts.append(f"name {value}")
-        elif name == "mtime":
-            ts = _dt.datetime.fromtimestamp(int(value)).strftime("%Y-%m-%d %H:%M:%S")
-            parts.append(f"mtime {ts}")
-    return " | ".join(parts)
-
-
-def find_duplicate_groups(
-    entries: Iterable[FileEntry],
-    *,
-    use_hash: bool = True,
-    use_size: bool = True,
-    use_name: bool = False,
-    use_mtime: bool = False,
-    hash_max_bytes: int | None = None,
-) -> Tuple[Dict[Tuple[Tuple[str, object], ...], List[FileEntry]], int]:
-    """
-    Group files by selected criteria; return only groups with real duplicates.
-
-    You can toggle content hash, size, name, and modified time checks. At least one
-    criterion should be enabled. Hashing is only done when `use_hash` is True.
-    """
-    if not any([use_hash, use_size, use_name, use_mtime]):
-        return {}, 0
-
-    groups: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]] = {}
-    hash_skipped = 0
-
-    # Bucket by size first to reduce hashing work when hashing is enabled.
-    size_buckets: Dict[int, List[FileEntry]] = {}
-    if use_hash:
-        for path, size, mtime in entries:
-            size_buckets.setdefault(size, []).append((path, size, mtime))
-    else:
-        size_buckets = {None: list(entries)}  # type: ignore[arg-type]
-
-    for _, files in size_buckets.items():
-        # If hashing is active and this size has only one file, no need to hash.
-        do_hash_here = use_hash and len(files) > 1
-
-        for path, size, mtime in files:
-            components: List[Tuple[str, object]] = []
-
-            if do_hash_here:
-                if hash_max_bytes is not None and size > hash_max_bytes:
-                    hash_skipped += 1
-                else:
-                    try:
-                        digest = _sha256(path)
-                    except OSError:
-                        continue
-                    components.append(("hash", digest))
-            if use_size:
-                components.append(("size", size))
-            if use_name:
-                components.append(("name", _normalize_name(path.name)))
-            if use_mtime:
-                components.append(("mtime", mtime))
-
-            if not components:
-                continue
-
-            key = tuple(components)
-            groups.setdefault(key, []).append((path, size, mtime))
-
-    return {k: v for k, v in groups.items() if len(v) > 1}, hash_skipped
-
-
-def delete_files(paths: Iterable[Path], *, on_error=None) -> None:
-    """Delete files; prefer Recycle Bin/Trash if send2trash is available."""
-    try:
-        from send2trash import send2trash  # type: ignore
-    except Exception:
-        send2trash = None
-
-    for path in paths:
-        try:
-            if send2trash:
-                send2trash(str(path))
-            else:
-                path.unlink(missing_ok=True)
-        except Exception as exc:
-            if on_error:
-                on_error("Delete failed", f"Could not delete {path}:\n{exc}")
 
 
 class DuplicateCleanerUI:
@@ -311,16 +149,16 @@ class DuplicateCleanerUI:
         self.prefix_var = tk.StringVar(value="")
         self.filter_var = tk.StringVar(value="")
         self.selection_var = tk.StringVar(value="0 files selected / 0 groups affected")
-        self.folder_history: List[str] = []
+        self.folder_history: list[str] = []
         self._scanning = False
         self._last_hash_skipped = 0
         self._last_scan_skipped = 0
         self._last_folder: Path | None = None
         self._last_days: int = 0
         self._last_scan_seconds: float | None = None
-        self.duplicates: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]] = {}
-        self._item_meta: Dict[str, Dict[str, object]] = {}
-        self._sort_directions: Dict[str, bool] = {}
+        self.duplicates: dict[tuple[tuple[str, object], ...], list[FileEntry]] = {}
+        self._item_meta: dict[str, dict[str, object]] = {}
+        self._sort_directions: dict[str, bool] = {}
         self._last_sort_column: str | None = None
         self._last_sort_direction: bool = True  # True = ascending
         self._spinner_job: str | None = None
@@ -329,11 +167,11 @@ class DuplicateCleanerUI:
         self._actions_enabled = False
         self._selection_updating = False
         self._message_wrap_width = 0
-        self._advanced_settings: Dict[str, object] = {}
-        self._advanced_widgets: List[tk.Widget] = []
+        self._advanced_settings: dict[str, object] = {}
+        self._advanced_widgets: list[tk.Widget] = []
         self._last_view_mode: str | None = None
         self._last_scan_mode: str | None = None
-        self._last_scan_settings: Dict[str, object] = {}
+        self._last_scan_settings: dict[str, object] = {}
         self._closing = False
 
         self._build_layout()
@@ -572,7 +410,7 @@ class DuplicateCleanerUI:
         self.results_tree.column("modified", width=150, anchor="w", stretch=False)
         self.results_tree.column("size", width=90, anchor="e", stretch=False)
         self.results_tree.grid(row=0, column=0, sticky="nsew")
-        for col in ("#0",) + columns:
+        for col in ("#0", *columns):
             self.results_tree.heading(col, command=lambda c=col: self._sort_tree(c))
 
         vsb = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.results_tree.yview)
@@ -607,7 +445,7 @@ class DuplicateCleanerUI:
         canvas = tk.Canvas(parent, width=size, height=size, bg=bg, highlightthickness=0, bd=0, cursor="hand2")
 
         scale = size / 24.0
-        stroke = max(1, int(round(2 * scale)))
+        stroke = max(1, round(2 * scale))
         pad = 2 * scale
 
         canvas.create_oval(pad, pad, size - pad, size - pad, outline=fg, width=stroke)
@@ -634,7 +472,7 @@ class DuplicateCleanerUI:
             splinesteps=12,
         )
 
-        dot_r = max(1, int(round(stroke * 0.6)))
+        dot_r = max(1, round(stroke * 0.6))
         dot_cx = 12 * scale
         dot_cy = 17 * scale
         canvas.create_oval(
@@ -651,7 +489,7 @@ class DuplicateCleanerUI:
     def _on_view_change(self) -> None:
         self._apply_view_mode()
 
-    def _snapshot_advanced_settings(self) -> Dict[str, object]:
+    def _snapshot_advanced_settings(self) -> dict[str, object]:
         return {
             "days": int(self.days_var.get()),
             "use_hash": bool(self.use_hash.get()),
@@ -667,7 +505,7 @@ class DuplicateCleanerUI:
             "include_subfolders": bool(self.include_subfolders.get()),
         }
 
-    def _apply_advanced_settings(self, settings: Dict[str, object]) -> None:
+    def _apply_advanced_settings(self, settings: dict[str, object]) -> None:
         self.days_var.set(int(settings.get("days", self.days_var.get())))
         self.use_hash.set(bool(settings.get("use_hash", self.use_hash.get())))
         self.use_size.set(bool(settings.get("use_size", self.use_size.get())))
@@ -716,9 +554,8 @@ class DuplicateCleanerUI:
             if restore_advanced and self._advanced_settings:
                 self._apply_advanced_settings(self._advanced_settings)
             self._set_advanced_visible(True)
-            if self._last_folder is not None:
-                if self.duplicates or self._last_scan_seconds is not None:
-                    self._render_results(self._last_folder, self._last_days)
+            if self._last_folder is not None and (self.duplicates or self._last_scan_seconds is not None):
+                self._render_results(self._last_folder, self._last_days)
             self._update_selection_status()
         self._last_view_mode = mode
 
@@ -798,10 +635,8 @@ class DuplicateCleanerUI:
             "recent_folders": list(self.folder_history),
             "view_mode": self.view_mode.get(),
         }
-        try:
+        with contextlib.suppress(Exception):
             SETTINGS_PATH.write_text(json.dumps(opts, indent=2), encoding="utf-8")
-        except Exception:
-            pass
 
     def _ui_alive(self) -> bool:
         try:
@@ -819,10 +654,8 @@ class DuplicateCleanerUI:
 
     def _cancel_filter_job(self) -> None:
         if self._filter_job:
-            try:
+            with contextlib.suppress(Exception):
                 self.root.after_cancel(self._filter_job)
-            except Exception:
-                pass
             self._filter_job = None
 
     def _on_close(self) -> None:
@@ -847,10 +680,8 @@ class DuplicateCleanerUI:
 
     def _stop_scan_spinner(self) -> None:
         if self._spinner_job:
-            try:
+            with contextlib.suppress(Exception):
                 self.root.after_cancel(self._spinner_job)
-            except Exception:
-                pass
             self._spinner_job = None
         self._spinner_idx = 0
         if not self._ui_alive():
@@ -895,18 +726,18 @@ class DuplicateCleanerUI:
         self.folder_history = []
         self.folder_combo.configure(values=[])
 
-    def _rename_conflicting_kept_files(self, kept: List[Path], deleting: List[Path]) -> List[Tuple[Path, Path]]:
+    def _rename_conflicting_kept_files(self, kept: list[Path], deleting: list[Path]) -> list[tuple[Path, Path]]:
         """
         Auto-rename kept files using the configured pattern. Always resolves same-name conflicts;
         when enabled, also renames all kept files to the pattern so names are unique and time-stamped.
         Pattern: base_YYYY-MM-DD_HH-MM-SS_###.ext
         """
         timestamp = _dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        rename_actions: List[Tuple[Path, Path]] = []
-        errors: List[str] = []
+        rename_actions: list[tuple[Path, Path]] = []
+        errors: list[str] = []
 
         # Group kept files by base name.
-        groups: Dict[str, List[Path]] = {}
+        groups: dict[str, list[Path]] = {}
         for path in kept:
             groups.setdefault(path.name, []).append(path)
 
@@ -1016,7 +847,7 @@ class DuplicateCleanerUI:
                 hash_max_bytes=hash_limit,
             )
         except Exception as exc:  # pragma: no cover - UI/IO bound
-            self._safe_after(0, lambda: self._error("Scan failed", str(exc)))
+            self._safe_after(0, lambda e=exc: self._error("Scan failed", str(e)))
             self._safe_after(0, self._finish_scan)
             return
 
@@ -1027,7 +858,7 @@ class DuplicateCleanerUI:
         self,
         folder: Path,
         days: int,
-        duplicates: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]],
+        duplicates: dict[tuple[tuple[str, object], ...], list[FileEntry]],
         hash_skipped: int,
         scan_skipped: int,
         elapsed_seconds: float,
@@ -1060,7 +891,7 @@ class DuplicateCleanerUI:
             return
         self.scan_btn.configure(state="normal")
 
-    def _build_summary_text(self, days: int) -> Tuple[str, str]:
+    def _build_summary_text(self, days: int) -> tuple[str, str]:
         scan_time_text = ""
         if self._last_scan_seconds is not None:
             if self._last_scan_seconds < 1:
@@ -1086,7 +917,7 @@ class DuplicateCleanerUI:
             summary += " Subfolders: off."
         summary += scan_time_text
 
-        notice_parts: List[str] = []
+        notice_parts: list[str] = []
         if self._last_hash_skipped:
             use_size = bool(self._last_scan_settings.get("use_size", self.use_size.get()))
             use_name = bool(self._last_scan_settings.get("use_name", self.use_name.get()))
@@ -1171,9 +1002,9 @@ class DuplicateCleanerUI:
             self._sort_tree(self._last_sort_column, direction=self._last_sort_direction, remember=False, toggle=False)
         self._update_selection_status()
 
-    def _collect_newest_keep_delete(self) -> Tuple[List[Path], List[Path]]:
-        to_delete: List[Path] = []
-        to_keep: List[Path] = []
+    def _collect_newest_keep_delete(self) -> tuple[list[Path], list[Path]]:
+        to_delete: list[Path] = []
+        to_keep: list[Path] = []
         for files in self.duplicates.values():
             newest = max(files, key=lambda item: item[2])[0]
             for path, _, _ in files:
@@ -1209,7 +1040,7 @@ class DuplicateCleanerUI:
         if choice != "delete":
             return
 
-        rename_report: List[Tuple[Path, Path]] = []
+        rename_report: list[tuple[Path, Path]] = []
         if self.rename_kept_enabled.get():
             rename_report = self._rename_conflicting_kept_files(to_keep, to_delete)
         delete_files(to_delete, on_error=self._error)
@@ -1308,7 +1139,7 @@ class DuplicateCleanerUI:
             return meta.get("size", 0)
         return 0
 
-    def _collect_selected_file_ids(self) -> Tuple[set[str], set[str]]:
+    def _collect_selected_file_ids(self) -> tuple[set[str], set[str]]:
         selected_items = set(self.results_tree.selection())
         selected_groups = {item for item in selected_items if self._item_meta.get(item, {}).get("kind") == "group"}
         selected_files = {item for item in selected_items if self._item_meta.get(item, {}).get("kind") == "file"}
@@ -1324,8 +1155,8 @@ class DuplicateCleanerUI:
                 groups_affected.add(parent)
         return selected_files, groups_affected
 
-    def _fully_selected_groups(self, selected_files: set[str], groups_affected: set[str]) -> List[str]:
-        fully_selected: List[str] = []
+    def _fully_selected_groups(self, selected_files: set[str], groups_affected: set[str]) -> list[str]:
+        fully_selected: list[str] = []
         for group_id in self.results_tree.get_children(""):
             if group_id not in groups_affected:
                 continue
@@ -1357,7 +1188,7 @@ class DuplicateCleanerUI:
                 self._selection_updating = False
         self._update_selection_status()
 
-    def _confirm_full_group_delete(self, group_labels: List[str]) -> bool:
+    def _confirm_full_group_delete(self, group_labels: list[str]) -> bool:
         top = tk.Toplevel(self.root)
         top.title("All Copies Selected")
         top.transient(self.root)
@@ -1457,7 +1288,7 @@ class DuplicateCleanerUI:
         self.root.clipboard_append(text)
 
     def _copy_group(self, item: str) -> None:
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append(f"{self.results_tree.item(item, 'text')}")
         for child in self.results_tree.get_children(item):
             vals = self.results_tree.item(child, "values")
@@ -1493,7 +1324,7 @@ class DuplicateCleanerUI:
         self,
         title: str,
         message: str,
-        buttons: List[Tuple[str, object]],
+        buttons: list[tuple[str, object]],
         default_index: int | None = None,
     ) -> object:
         top = tk.Toplevel(self.root)
@@ -1570,8 +1401,8 @@ class DuplicateCleanerUI:
                 except Exception:
                     self._error("Open folder failed", f"Could not open {path.parent}")
 
-    def _generate_report_rows(self) -> List[List[str]]:
-        rows: List[List[str]] = []
+    def _generate_report_rows(self) -> list[list[str]]:
+        rows: list[list[str]] = []
         for key, files in sorted(self.duplicates.items()):
             sorted_files = sorted(files, key=lambda item: item[2], reverse=True)
             for path, size, mtime in sorted_files:
@@ -1644,8 +1475,8 @@ class DuplicateCleanerUI:
             if not self._confirm_full_group_delete(group_labels):
                 return
 
-        to_delete: List[Path] = []
-        to_keep: List[Path] = []
+        to_delete: list[Path] = []
+        to_keep: list[Path] = []
         for group_id in groups_affected:
             for child in self.results_tree.get_children(group_id):
                 meta = self._item_meta.get(child, {})
@@ -1671,7 +1502,7 @@ class DuplicateCleanerUI:
         if not confirm:
             return
 
-        rename_report: List[Tuple[Path, Path]] = []
+        rename_report: list[tuple[Path, Path]] = []
         if self.rename_kept_enabled.get():
             rename_report = self._rename_conflicting_kept_files(to_keep, to_delete)
         delete_files(to_delete, on_error=self._error)
@@ -1686,8 +1517,8 @@ class DuplicateCleanerUI:
             self._info("Nothing to delete", "No duplicates have been scanned yet.")
             return
 
-        auto_keep: Dict[Tuple[Tuple[str, object], ...], Path] = {}
-        manual_groups: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]] = {}
+        auto_keep: dict[tuple[tuple[str, object], ...], Path] = {}
+        manual_groups: dict[tuple[tuple[str, object], ...], list[FileEntry]] = {}
 
         if self.skip_same_folder_prompt.get():
             for key, files in self.duplicates.items():
@@ -1701,7 +1532,7 @@ class DuplicateCleanerUI:
         else:
             manual_groups = self.duplicates
 
-        keep_choices: Dict[Tuple[Tuple[str, object], ...], Path] = dict(auto_keep)
+        keep_choices: dict[tuple[tuple[str, object], ...], Path] = dict(auto_keep)
         if manual_groups:
             manual_choices = self._prompt_keep_choices(manual_groups)
             if manual_choices is None:
@@ -1709,8 +1540,8 @@ class DuplicateCleanerUI:
             keep_choices.update(manual_choices)
 
         # Decide which files to delete based on user choices.
-        to_delete: List[Path] = []
-        to_keep: List[Path] = []
+        to_delete: list[Path] = []
+        to_keep: list[Path] = []
         for key, files in self.duplicates.items():
             selected_keep = keep_choices.get(key)
             for path, _, _ in files:
@@ -1733,7 +1564,7 @@ class DuplicateCleanerUI:
         if not confirm:
             return
 
-        rename_report: List[Tuple[Path, Path]] = []
+        rename_report: list[tuple[Path, Path]] = []
         if self.rename_kept_enabled.get():
             rename_report = self._rename_conflicting_kept_files(to_keep, to_delete)
         delete_files(to_delete, on_error=self._error)
@@ -1745,8 +1576,8 @@ class DuplicateCleanerUI:
         self._scan()
 
     def _prompt_keep_choices(
-        self, groups: Dict[Tuple[Tuple[str, object], ...], List[FileEntry]]
-    ) -> Dict[Tuple[Tuple[str, object], ...], Path] | None:
+        self, groups: dict[tuple[tuple[str, object], ...], list[FileEntry]]
+    ) -> dict[tuple[tuple[str, object], ...], Path] | None:
         """Show a dialog to choose which file to keep per duplicate group."""
         top = tk.Toplevel(self.root)
         top.title("Choose files to keep")
@@ -1768,7 +1599,7 @@ class DuplicateCleanerUI:
             location = str(path if show_full else path.parent)
             return f"{location}  ({human_size(size)}, modified {ts})"
 
-        display_rows: List[Tuple[ttk.Radiobutton, Path, int, float]] = []
+        display_rows: list[tuple[ttk.Radiobutton, Path, int, float]] = []
 
         def refresh_keep_texts() -> None:
             show_full = bool(self.show_keep_full_paths.get())
@@ -1782,7 +1613,7 @@ class DuplicateCleanerUI:
             command=refresh_keep_texts,
         ).pack(anchor="w", pady=(0, 6))
 
-        def set_status_labels(var: tk.IntVar, labels: List[ttk.Label]) -> None:
+        def set_status_labels(var: tk.IntVar, labels: list[ttk.Label]) -> None:
             selected_idx = var.get()
             for idx, label in enumerate(labels):
                 if idx == selected_idx:
@@ -1790,10 +1621,10 @@ class DuplicateCleanerUI:
                 else:
                     label.configure(text="DELETE", style="DeleteStatus.TLabel")
 
-        keep_vars: List[
-            Tuple[tk.IntVar, List[FileEntry], Tuple[Tuple[str, object], ...], List[ttk.Label]]
+        keep_vars: list[
+            tuple[tk.IntVar, list[FileEntry], tuple[tuple[str, object], ...], list[ttk.Label]]
         ] = []
-        for group_idx, (key, files) in enumerate(sorted(groups.items())):
+        for _group_idx, (key, files) in enumerate(sorted(groups.items())):
             lf = ttk.LabelFrame(container, text=_describe_key(key), padding=(8, 6))
             lf.pack(fill="both", expand=True, padx=4, pady=4)
             sorted_files = sorted(files, key=lambda item: item[2], reverse=True)
@@ -1803,7 +1634,7 @@ class DuplicateCleanerUI:
             table.columnconfigure(1, weight=1)
             ttk.Label(table, text="Status").grid(row=0, column=0, sticky="w", padx=(0, 8))
             ttk.Label(table, text="File").grid(row=0, column=1, sticky="w")
-            status_labels: List[ttk.Label] = []
+            status_labels: list[ttk.Label] = []
             for idx, (path, size, mtime) in enumerate(sorted_files):
                 status_label = ttk.Label(
                     table, text="DELETE", width=7, anchor="w", style="DeleteStatus.TLabel"
@@ -1824,11 +1655,11 @@ class DuplicateCleanerUI:
 
         btns = ttk.Frame(container)
         btns.pack(fill="x", pady=(6, 0))
-        result: Dict[Tuple[Tuple[str, object], ...], Path] | None = None
+        result: dict[tuple[tuple[str, object], ...], Path] | None = None
 
         def on_ok() -> None:
             nonlocal result
-            selection: Dict[Tuple[Tuple[str, object], ...], Path] = {}
+            selection: dict[tuple[tuple[str, object], ...], Path] = {}
             for var, files, key, _ in keep_vars:
                 idx = var.get()
                 if idx < 0 or idx >= len(files):
@@ -1898,7 +1729,7 @@ class DuplicateCleanerUI:
 
 def main() -> None:
     root = tk.Tk()
-    app = DuplicateCleanerUI(root)
+    DuplicateCleanerUI(root)
     root.mainloop()
 
 

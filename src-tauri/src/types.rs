@@ -1,0 +1,178 @@
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
+
+/// Internal file entry used during scanning and grouping.
+#[derive(Debug, Clone)]
+pub struct FileEntry {
+    pub path: PathBuf,
+    pub size: u64,
+    pub mtime: f64,
+}
+
+/// A single criterion value used to build grouping keys.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CriterionValue {
+    Hash(String),
+    Size(u64),
+    Name(String),
+    Mtime(i64),
+}
+
+/// A grouping key: ordered list of criterion values.
+pub type DuplicateKey = Vec<CriterionValue>;
+
+/// File entry DTO sent to the frontend via Tauri commands.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileEntryDto {
+    pub path: String,
+    pub name: String,
+    pub folder: String,
+    pub size: u64,
+    pub size_human: String,
+    pub mtime: f64,
+    pub mtime_formatted: String,
+}
+
+/// A group of duplicate files sent to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DuplicateGroup {
+    pub key_description: String,
+    pub files: Vec<FileEntryDto>,
+}
+
+/// Full scan result sent to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanResult {
+    pub groups: Vec<DuplicateGroup>,
+    pub total_files_scanned: usize,
+    pub hash_skipped: usize,
+    pub scan_skipped: usize,
+    pub elapsed_seconds: f64,
+}
+
+/// Return a human-friendly size string (e.g. "1.00 KB").
+pub fn human_size(num_bytes: u64) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB"];
+    let mut size = num_bytes as f64;
+    for unit in &units {
+        if size < 1024.0 || *unit == "TB" {
+            return format!("{:.2} {}", size, unit);
+        }
+        size /= 1024.0;
+    }
+    format!("{} B", num_bytes)
+}
+
+/// Format a human-readable description of a duplicate grouping key.
+pub fn describe_key(key: &DuplicateKey) -> String {
+    let parts: Vec<String> = key
+        .iter()
+        .map(|c| match c {
+            CriterionValue::Hash(digest) => {
+                let short: String = digest.chars().take(8).collect();
+                format!("sha256 {}...", short)
+            }
+            CriterionValue::Size(size) => {
+                format!("size {}", human_size(*size))
+            }
+            CriterionValue::Name(name) => {
+                format!("name {}", name)
+            }
+            CriterionValue::Mtime(ts) => {
+                let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                    .unwrap_or_default()
+                    .with_timezone(&chrono::Local);
+                format!("mtime {}", dt.format("%Y-%m-%d %H:%M:%S"))
+            }
+        })
+        .collect();
+    parts.join(" | ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -- human_size tests (ported from Python test_core.py) --
+
+    #[test]
+    fn test_zero_bytes() {
+        assert_eq!(human_size(0), "0.00 B");
+    }
+
+    #[test]
+    fn test_bytes() {
+        assert_eq!(human_size(512), "512.00 B");
+    }
+
+    #[test]
+    fn test_kilobytes() {
+        assert_eq!(human_size(1024), "1.00 KB");
+    }
+
+    #[test]
+    fn test_megabytes() {
+        assert_eq!(human_size(1024 * 1024), "1.00 MB");
+    }
+
+    #[test]
+    fn test_gigabytes() {
+        assert_eq!(human_size(1024_u64.pow(3)), "1.00 GB");
+    }
+
+    #[test]
+    fn test_terabytes() {
+        assert_eq!(human_size(1024_u64.pow(4)), "1.00 TB");
+    }
+
+    #[test]
+    fn test_large_terabytes_stays_in_tb() {
+        let result = human_size(5 * 1024_u64.pow(4));
+        assert!(result.contains("TB"));
+    }
+
+    // -- describe_key tests --
+
+    #[test]
+    fn test_describe_key_hash() {
+        let key = vec![CriterionValue::Hash("abcdef1234567890".into())];
+        let result = describe_key(&key);
+        assert!(result.contains("sha256"));
+        assert!(result.contains("abcdef12"));
+    }
+
+    #[test]
+    fn test_describe_key_size() {
+        let key = vec![CriterionValue::Size(1024)];
+        let result = describe_key(&key);
+        assert!(result.contains("1.00 KB"));
+    }
+
+    #[test]
+    fn test_describe_key_name() {
+        let key = vec![CriterionValue::Name("report.txt".into())];
+        let result = describe_key(&key);
+        assert!(result.contains("report.txt"));
+    }
+
+    #[test]
+    fn test_describe_key_combined_uses_pipe() {
+        let key = vec![
+            CriterionValue::Hash("abc12345".into()),
+            CriterionValue::Size(2048),
+        ];
+        let result = describe_key(&key);
+        assert!(result.contains(" | "));
+        assert!(result.contains("sha256"));
+        assert!(result.contains("KB"));
+    }
+
+    #[test]
+    fn test_describe_key_mtime() {
+        let key = vec![CriterionValue::Mtime(1700000000)];
+        let result = describe_key(&key);
+        assert!(result.contains("mtime"));
+        assert!(result.contains("2023"));
+    }
+}
