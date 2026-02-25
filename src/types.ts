@@ -35,7 +35,6 @@ export interface AppSettings {
   hash_limit_enabled: boolean;
   hash_max_mb: number;
   skip_same_folder_prompt: boolean;
-  rename_kept_enabled: boolean;
   show_keep_full_paths: boolean;
   include_subfolders: boolean;
   name_prefix: string;

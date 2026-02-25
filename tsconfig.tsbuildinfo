@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/confirmdialog.tsx","./src/components/keepchoicedialog.tsx","./src/components/resultstable.tsx","./src/components/scanview.tsx","./src/components/settingspanel.tsx","./src/components/statusbar.tsx"],"version":"5.6.3"}

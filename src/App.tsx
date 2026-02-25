@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import * as api from "./api";
 import type { AppSettings, DuplicateGroup, ScanResult } from "./types";
 import ConfirmDialog from "./components/ConfirmDialog";
@@ -19,7 +20,6 @@ const SIMPLIFIED_DEFAULTS: Partial<AppSettings> = {
   include_subfolders: true,
   name_prefix: "",
   skip_same_folder_prompt: true,
-  rename_kept_enabled: true,
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -32,7 +32,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   hash_limit_enabled: true,
   hash_max_mb: 500,
   skip_same_folder_prompt: false,
-  rename_kept_enabled: false,
   show_keep_full_paths: false,
   include_subfolders: true,
   name_prefix: "",
@@ -90,7 +89,7 @@ export default function App() {
     })();
   }, []);
 
-  // Save settings on close / periodically
+  // Save settings — awaitable, used by close handler and after scans.
   const saveSettings = useCallback(async () => {
     try {
       await api.saveSettings(settingsRef.current);
@@ -99,9 +98,16 @@ export default function App() {
     }
   }, []);
 
+  // Use Tauri's onCloseRequested so the save completes before the
+  // window actually closes (beforeunload cannot await async work).
   useEffect(() => {
-    window.addEventListener("beforeunload", saveSettings);
-    return () => window.removeEventListener("beforeunload", saveSettings);
+    const win = getCurrentWindow();
+    const unlisten = win.onCloseRequested(async () => {
+      await saveSettings();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, [saveSettings]);
 
   const viewMode = settings.view_mode;
@@ -118,7 +124,6 @@ export default function App() {
         hash_limit_enabled: settings.hash_limit_enabled,
         hash_max_mb: settings.hash_max_mb,
         skip_same_folder_prompt: settings.skip_same_folder_prompt,
-        rename_kept_enabled: settings.rename_kept_enabled,
         include_subfolders: settings.include_subfolders,
         name_prefix: settings.name_prefix,
       });
@@ -586,7 +591,6 @@ export default function App() {
             includeSubfolders={settings.include_subfolders}
             namePrefix={settings.name_prefix}
             skipSameFolderPrompt={settings.skip_same_folder_prompt}
-            renameKeptEnabled={settings.rename_kept_enabled}
             onChange={updateSetting}
           />
         )}

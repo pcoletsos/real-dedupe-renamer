@@ -34,8 +34,44 @@ pub fn cmd_open_folder(path: String) -> Result<(), String> {
 }
 
 /// Scan a folder for duplicate files.
+///
+/// Runs on a background thread (async command) so the UI stays responsive
+/// during disk I/O and hashing.
 #[tauri::command(rename_all = "snake_case")]
-pub fn cmd_scan(
+pub async fn cmd_scan(
+    folder: String,
+    days: u32,
+    use_hash: bool,
+    use_size: bool,
+    use_name: bool,
+    use_mtime: bool,
+    hash_limit_enabled: bool,
+    hash_max_mb: u32,
+    include_subfolders: bool,
+    name_prefix: String,
+) -> Result<ScanResult, String> {
+    // Move CPU-heavy work to a blocking thread so we don't starve the async
+    // runtime.  `spawn_blocking` returns a JoinHandle whose error we convert.
+    tokio::task::spawn_blocking(move || {
+        scan_blocking(
+            folder,
+            days,
+            use_hash,
+            use_size,
+            use_name,
+            use_mtime,
+            hash_limit_enabled,
+            hash_max_mb,
+            include_subfolders,
+            name_prefix,
+        )
+    })
+    .await
+    .map_err(|e| format!("Scan task panicked: {}", e))?
+}
+
+/// The actual scan logic, called inside `spawn_blocking`.
+fn scan_blocking(
     folder: String,
     days: u32,
     use_hash: bool,
@@ -132,24 +168,30 @@ pub fn cmd_scan(
 }
 
 /// Delete files (move to trash or permanent delete).
+///
+/// Runs on a background thread so the UI stays responsive during I/O.
 #[tauri::command]
-pub fn cmd_delete(paths: Vec<String>) -> Result<usize, String> {
-    let path_bufs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-    let result = deleter::delete_files(&path_bufs);
+pub async fn cmd_delete(paths: Vec<String>) -> Result<usize, String> {
+    tokio::task::spawn_blocking(move || {
+        let path_bufs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+        let result = deleter::delete_files(&path_bufs);
 
-    if !result.errors.is_empty() {
-        let error_msgs: Vec<String> = result
-            .errors
-            .iter()
-            .map(|(path, msg)| format!("{}: {}", path, msg))
-            .collect();
-        return Err(format!(
-            "Deleted {} files but {} errors:\n{}",
-            result.deleted,
-            result.errors.len(),
-            error_msgs.join("\n")
-        ));
-    }
+        if !result.errors.is_empty() {
+            let error_msgs: Vec<String> = result
+                .errors
+                .iter()
+                .map(|(path, msg)| format!("{}: {}", path, msg))
+                .collect();
+            return Err(format!(
+                "Deleted {} files but {} errors:\n{}",
+                result.deleted,
+                result.errors.len(),
+                error_msgs.join("\n")
+            ));
+        }
 
-    Ok(result.deleted)
+        Ok(result.deleted)
+    })
+    .await
+    .map_err(|e| format!("Delete task panicked: {}", e))?
 }

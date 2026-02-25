@@ -8,7 +8,6 @@ interface SettingsPanelProps {
   includeSubfolders: boolean;
   namePrefix: string;
   skipSameFolderPrompt: boolean;
-  renameKeptEnabled: boolean;
   onChange: (field: string, value: boolean | number | string) => void;
 }
 
@@ -22,7 +21,6 @@ export default function SettingsPanel({
   includeSubfolders,
   namePrefix,
   skipSameFolderPrompt,
-  renameKeptEnabled,
   onChange,
 }: SettingsPanelProps) {
   return (
@@ -132,16 +130,6 @@ export default function SettingsPanel({
           />
           Skip keep-choice dialog when duplicates are in the same folder (auto
           keep newest)
-        </label>
-        <label className="flex items-center gap-1.5 text-sm">
-          <input
-            type="checkbox"
-            checked={renameKeptEnabled}
-            onChange={(e) => onChange("rename_kept_enabled", e.target.checked)}
-            className="rounded"
-          />
-          Rename kept files after delete
-          (name_YYYY-MM-DD_HH-MM-SS_###.ext)
         </label>
       </div>
     </div>
