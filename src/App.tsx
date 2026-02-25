@@ -1,7 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import * as api from "./api";
-import type { AppSettings, DuplicateGroup, ScanResult } from "./types";
+import type {
+  AppSettings,
+  AutoRenameScanResult,
+  DuplicateGroup,
+  ScanResult,
+  ViewMode,
+} from "./types";
+import AutoRenamerPanel from "./components/AutoRenamerPanel";
+import AutoRenameStatus from "./components/AutoRenameStatus";
+import AutoRenameTable from "./components/AutoRenameTable";
 import ConfirmDialog from "./components/ConfirmDialog";
 import KeepChoiceDialog from "./components/KeepChoiceDialog";
 import ResultsTable from "./components/ResultsTable";
@@ -37,6 +46,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   name_prefix: "",
   recent_folders: [],
   view_mode: "simplified",
+  auto_file_type_preset: "all",
 };
 
 type ConfirmState = {
@@ -51,7 +61,9 @@ type ConfirmState = {
 
 export default function App() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [advancedSnapshot, setAdvancedSnapshot] = useState<Partial<AppSettings>>({});
+  const [advancedSnapshot, setAdvancedSnapshot] = useState<Partial<AppSettings>>(
+    {},
+  );
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
@@ -64,8 +76,19 @@ export default function App() {
   const [lastScanPrefix, setLastScanPrefix] = useState("");
   const [lastScanSubfolders, setLastScanSubfolders] = useState(true);
   const [lastScanHadFallback, setLastScanHadFallback] = useState(false);
+
+  const [autoScanning, setAutoScanning] = useState(false);
+  const [autoRenaming, setAutoRenaming] = useState(false);
+  const [autoScanResult, setAutoScanResult] = useState<AutoRenameScanResult | null>(
+    null,
+  );
+  const [autoPrefixSearch, setAutoPrefixSearch] = useState("");
+  const [autoLastMessage, setAutoLastMessage] = useState("");
+  const [autoLastMessageIsError, setAutoLastMessageIsError] = useState(false);
+
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const closeInFlightRef = useRef(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -77,6 +100,7 @@ export default function App() {
         ]);
         const merged = { ...DEFAULT_SETTINGS, ...loaded };
         if (!merged.folder) merged.folder = defaultFolder;
+        if (!merged.auto_file_type_preset) merged.auto_file_type_preset = "all";
         setSettings(merged);
       } catch {
         try {
@@ -98,23 +122,44 @@ export default function App() {
     }
   }, []);
 
+  const saveSettingsWithTimeout = useCallback(
+    async (timeoutMs = 1200) => {
+      await Promise.race([
+        saveSettings(),
+        new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+      ]);
+    },
+    [saveSettings],
+  );
+
   // Use Tauri's onCloseRequested so the save completes before the
   // window actually closes (beforeunload cannot await async work).
   useEffect(() => {
     const win = getCurrentWindow();
-    const unlisten = win.onCloseRequested(async () => {
-      await saveSettings();
+    const unlisten = win.onCloseRequested((event) => {
+      if (closeInFlightRef.current) return;
+      closeInFlightRef.current = true;
+      event.preventDefault();
+
+      void (async () => {
+        await saveSettingsWithTimeout();
+        try {
+          await win.close();
+        } catch {
+          closeInFlightRef.current = false;
+        }
+      })();
     });
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [saveSettings]);
+  }, [saveSettingsWithTimeout]);
 
   const viewMode = settings.view_mode;
 
-  const setViewMode = (mode: "simplified" | "advanced") => {
-    if (mode === "simplified" && viewMode === "advanced") {
-      // Snapshot current advanced settings before switching
+  const setViewMode = (mode: ViewMode) => {
+    if (viewMode === "advanced" && mode !== "advanced") {
+      // Snapshot current advanced settings before leaving advanced mode.
       setAdvancedSnapshot({
         days: settings.days,
         use_hash: settings.use_hash,
@@ -127,10 +172,11 @@ export default function App() {
         include_subfolders: settings.include_subfolders,
         name_prefix: settings.name_prefix,
       });
-    } else if (mode === "advanced" && viewMode === "simplified") {
-      // Restore advanced settings
+    } else if (mode === "advanced" && viewMode !== "advanced") {
+      // Restore advanced settings when entering advanced mode.
       if (Object.keys(advancedSnapshot).length > 0) {
-        setSettings((s) => ({ ...s, ...advancedSnapshot }));
+        setSettings((s) => ({ ...s, ...advancedSnapshot, view_mode: mode }));
+        return;
       }
     }
     setSettings((s) => ({ ...s, view_mode: mode }));
@@ -150,21 +196,28 @@ export default function App() {
   };
 
   const handleScan = async () => {
-    if (scanning) return;
+    if (viewMode === "auto_renamer") {
+      if (autoScanning || autoRenaming) return;
+      await performAutoScan();
+      return;
+    }
 
+    if (scanning) return;
+    await handleDuplicateScan();
+  };
+
+  const handleDuplicateScan = async () => {
     const folder = settings.folder.trim();
     if (!folder) {
       setConfirmState({
         title: "Invalid folder",
         message: "Please choose a folder to scan.",
-        buttons: [
-          { label: "OK", onClick: () => setConfirmState(null) },
-        ],
+        buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
       });
       return;
     }
 
-    // Use simplified defaults or current settings
+    // Use simplified defaults or current settings.
     const isSimplified = viewMode === "simplified";
     const scanSettings = isSimplified
       ? { ...settings, ...SIMPLIFIED_DEFAULTS }
@@ -179,9 +232,7 @@ export default function App() {
       setConfirmState({
         title: "No criteria",
         message: "Select at least one duplicate check.",
-        buttons: [
-          { label: "OK", onClick: () => setConfirmState(null) },
-        ],
+        buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
       });
       return;
     }
@@ -215,7 +266,7 @@ export default function App() {
         scanSettings.use_size || scanSettings.use_name || scanSettings.use_mtime,
       );
 
-      // Simplified mode: auto-prompt delete if duplicates found
+      // Simplified mode: auto-prompt delete if duplicates found.
       if (isSimplified && result.groups.length > 0) {
         showSimplifiedConfirm(result);
       }
@@ -223,9 +274,7 @@ export default function App() {
       setConfirmState({
         title: "Scan failed",
         message: String(e),
-        buttons: [
-          { label: "OK", onClick: () => setConfirmState(null) },
-        ],
+        buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
       });
     } finally {
       setScanning(false);
@@ -233,11 +282,124 @@ export default function App() {
     }
   };
 
+  const performAutoScan = async () => {
+    const folder = settings.folder.trim();
+    if (!folder) {
+      setConfirmState({
+        title: "Invalid folder",
+        message: "Please choose a folder to scan.",
+        buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
+      });
+      return;
+    }
+
+    setAutoScanning(true);
+    setAutoScanResult(null);
+    setAutoLastMessage("");
+    setAutoLastMessageIsError(false);
+
+    try {
+      const result = await api.scanAutoRename({
+        folder,
+        days: settings.days,
+        include_subfolders: settings.include_subfolders,
+        name_prefix: settings.name_prefix,
+        file_type_preset: settings.auto_file_type_preset,
+      });
+      rememberFolder(folder);
+      setAutoScanResult(result);
+      setLastScanDays(settings.days);
+      setLastScanPrefix(settings.name_prefix);
+      setLastScanSubfolders(settings.include_subfolders);
+      setAutoLastMessageIsError(false);
+    } catch (e) {
+      setAutoLastMessage(String(e));
+      setAutoLastMessageIsError(true);
+    } finally {
+      setAutoScanning(false);
+      saveSettings();
+    }
+  };
+
+  const filteredAutoCandidates = useMemo(() => {
+    const candidates = autoScanResult?.candidates ?? [];
+    const needle = autoPrefixSearch.trim().toLowerCase();
+    if (!needle) return candidates;
+    return candidates.filter((c) => c.name.toLowerCase().startsWith(needle));
+  }, [autoPrefixSearch, autoScanResult]);
+
+  const handleAutoRename = () => {
+    if (filteredAutoCandidates.length === 0) return;
+
+    const namesHint =
+      "Pattern: folderName_YYYYMMDD_HHMMSS_###.ext\n" +
+      "Only files currently matching Prefix search will be renamed.";
+
+    setConfirmState({
+      title: "Confirm auto-rename",
+      message:
+        `This will rename ${filteredAutoCandidates.length} file(s).\n` +
+        `${namesHint}\n\nProceed?`,
+      buttons: [
+        { label: "Cancel", onClick: () => setConfirmState(null) },
+        {
+          label: "Auto-rename",
+          onClick: () => {
+            setConfirmState(null);
+            executeAutoRename(filteredAutoCandidates.map((c) => c.path));
+          },
+          variant: "danger",
+        },
+      ],
+    });
+  };
+
+  const executeAutoRename = async (paths: string[]) => {
+    if (paths.length === 0) return;
+
+    setAutoRenaming(true);
+    setAutoLastMessage("");
+    setAutoLastMessageIsError(false);
+
+    try {
+      const result = await api.autoRename(paths);
+      const summaryParts = [`Renamed ${result.renamed_count} file(s).`];
+      if (result.skipped_count > 0) {
+        summaryParts.push(`Skipped ${result.skipped_count} file(s).`);
+      }
+      if (result.error_count > 0) {
+        summaryParts.push(`${result.error_count} error(s).`);
+      }
+      const summary = summaryParts.join(" ");
+      setAutoLastMessage(summary);
+      setAutoLastMessageIsError(result.error_count > 0);
+
+      const details =
+        result.errors.length > 0
+          ? `\n\nFirst error:\n${result.errors[0].path}\n${result.errors[0].message}`
+          : "";
+      setConfirmState({
+        title: result.error_count > 0 ? "Auto-rename completed with issues" : "Done",
+        message: `${summary}${details}`,
+        buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
+      });
+    } catch (e) {
+      setAutoLastMessage(String(e));
+      setAutoLastMessageIsError(true);
+      setConfirmState({
+        title: "Auto-rename failed",
+        message: String(e),
+        buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
+      });
+    } finally {
+      setAutoRenaming(false);
+    }
+
+    await performAutoScan();
+  };
+
   const showSimplifiedConfirm = (result: ScanResult) => {
-    const totalDupes = result.groups.reduce(
-      (n, g) => n + g.files.length - 1,
-      0,
-    );
+    const totalDupes = result.groups.reduce((n, g) => n + g.files.length - 1, 0);
     const totalSize = result.groups.reduce((n, g) => {
       const sorted = [...g.files].sort((a, b) => b.mtime - a.mtime);
       return n + sorted.slice(1).reduce((s, f) => s + f.size, 0);
@@ -252,10 +414,7 @@ export default function App() {
         `The newest file in each group will be kept.\n\n` +
         `Proceed?`,
       buttons: [
-        {
-          label: "Cancel",
-          onClick: () => setConfirmState(null),
-        },
+        { label: "Cancel", onClick: () => setConfirmState(null) },
         {
           label: "Review in Advanced",
           onClick: () => {
@@ -276,7 +435,7 @@ export default function App() {
   };
 
   const simplifiedDelete = async (result: ScanResult) => {
-    // Auto-keep newest (first file, sorted by mtime desc)
+    // Auto-keep newest (first file, sorted by mtime desc).
     const toDelete: string[] = [];
     for (const group of result.groups) {
       const sorted = [...group.files].sort((a, b) => b.mtime - a.mtime);
@@ -296,7 +455,7 @@ export default function App() {
             label: "OK",
             onClick: () => {
               setConfirmState(null);
-              handleScan(); // Re-scan
+              handleScan(); // Re-scan.
             },
           },
         ],
@@ -305,19 +464,17 @@ export default function App() {
       setConfirmState({
         title: "Delete failed",
         message: String(e),
-        buttons: [
-          { label: "OK", onClick: () => setConfirmState(null) },
-        ],
+        buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
       });
     }
   };
 
-  // Advanced mode: Delete duplicates with keep-choice dialog
+  // Advanced mode: Delete duplicates with keep-choice dialog.
   const handleDeleteDuplicates = () => {
     if (!scanResult || scanResult.groups.length === 0) return;
 
     if (settings.skip_same_folder_prompt) {
-      // Separate same-folder groups (auto-keep newest) from multi-folder groups
+      // Separate same-folder groups (auto-keep newest) from multi-folder groups.
       const manualGroups: DuplicateGroup[] = [];
       const autoKeep = new Map<number, string>(); // group index -> keep path
 
@@ -332,12 +489,12 @@ export default function App() {
       });
 
       if (manualGroups.length === 0) {
-        // All groups are same-folder, proceed directly
+        // All groups are same-folder, proceed directly.
         confirmAndDelete(autoKeep);
         return;
       }
 
-      // Show keep-choice for multi-folder groups
+      // Show keep-choice for multi-folder groups.
       setKeepChoiceGroups(manualGroups);
       setKeepChoiceOpen(true);
     } else {
@@ -349,7 +506,7 @@ export default function App() {
   const handleKeepChoiceConfirm = (keepPaths: Map<number, string>) => {
     setKeepChoiceOpen(false);
 
-    // Build full map including auto-kept groups
+    // Build full map including auto-kept groups.
     const fullKeep = new Map<number, string>();
 
     if (settings.skip_same_folder_prompt && scanResult) {
@@ -362,7 +519,7 @@ export default function App() {
       });
     }
 
-    // Map manual choices back to original group indices
+    // Map manual choices back to original group indices.
     let manualIdx = 0;
     if (scanResult) {
       scanResult.groups.forEach((_group, gi) => {
@@ -417,18 +574,16 @@ export default function App() {
     });
   };
 
-  // Advanced mode: delete selected files
+  // Advanced mode: delete selected files.
   const handleDeleteSelected = () => {
     if (selectedPaths.size === 0 || !scanResult) return;
 
-    // Check for fully-selected groups (all copies would be deleted)
+    // Check for fully-selected groups (all copies would be deleted).
     const fullySelectedGroups: string[] = [];
     for (const g of scanResult.groups) {
       const paths = g.files.map((f) => f.path);
       if (paths.every((p) => selectedPaths.has(p))) {
-        fullySelectedGroups.push(
-          `${g.files[0].name} (${g.files.length} copies)`,
-        );
+        fullySelectedGroups.push(`${g.files[0].name} (${g.files.length} copies)`);
       }
     }
 
@@ -498,7 +653,7 @@ export default function App() {
             label: "OK",
             onClick: () => {
               setConfirmState(null);
-              handleScan(); // Re-scan
+              handleScan(); // Re-scan.
             },
           },
         ],
@@ -507,9 +662,7 @@ export default function App() {
       setConfirmState({
         title: "Delete failed",
         message: String(e),
-        buttons: [
-          { label: "OK", onClick: () => setConfirmState(null) },
-        ],
+        buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
       });
     }
   };
@@ -524,14 +677,9 @@ export default function App() {
 
   const handleCopyReport = () => {
     if (!scanResult) return;
-    const lines: string[] = [
-      `Found ${scanResult.groups.length} duplicate group(s)`,
-      "",
-    ];
+    const lines: string[] = [`Found ${scanResult.groups.length} duplicate group(s)`, ""];
     for (const group of scanResult.groups) {
-      lines.push(
-        `${group.files[0].name}  [${group.key_description}]`,
-      );
+      lines.push(`${group.files[0].name}  [${group.key_description}]`);
       const sorted = [...group.files].sort((a, b) => b.mtime - a.mtime);
       for (const file of sorted) {
         lines.push(
@@ -544,13 +692,12 @@ export default function App() {
     setConfirmState({
       title: "Copied",
       message: "Scan report copied to clipboard.",
-      buttons: [
-        { label: "OK", onClick: () => setConfirmState(null) },
-      ],
+      buttons: [{ label: "OK", onClick: () => setConfirmState(null) }],
     });
   };
 
   const isAdvanced = viewMode === "advanced";
+  const isAutoRenamer = viewMode === "auto_renamer";
   const hasResults = scanResult !== null && scanResult.groups.length > 0;
 
   return (
@@ -571,12 +718,12 @@ export default function App() {
           days={settings.days}
           onDaysChange={(d) => updateSetting("days", d)}
           onScan={handleScan}
-          scanning={scanning}
+          scanning={scanning || autoScanning}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           recentFolders={settings.recent_folders}
           onClearHistory={() => setSettings((s) => ({ ...s, recent_folders: [] }))}
-          showDays={isAdvanced}
+          showDays={viewMode !== "simplified"}
         />
 
         {/* Settings (advanced only) */}
@@ -595,6 +742,24 @@ export default function App() {
           />
         )}
 
+        {/* Auto-renamer panel */}
+        {isAutoRenamer && (
+          <AutoRenamerPanel
+            includeSubfolders={settings.include_subfolders}
+            prefixScan={settings.name_prefix}
+            prefixSearch={autoPrefixSearch}
+            fileTypePreset={settings.auto_file_type_preset}
+            onIncludeSubfoldersChange={(value) =>
+              updateSetting("include_subfolders", value)
+            }
+            onPrefixScanChange={(value) => updateSetting("name_prefix", value)}
+            onPrefixSearchChange={setAutoPrefixSearch}
+            onFileTypePresetChange={(value) =>
+              updateSetting("auto_file_type_preset", value)
+            }
+          />
+        )}
+
         {/* Delete duplicates button (advanced with results) */}
         {isAdvanced && hasResults && (
           <button
@@ -605,22 +770,48 @@ export default function App() {
           </button>
         )}
 
+        {/* Auto-rename button */}
+        {isAutoRenamer && autoScanResult !== null && (
+          <button
+            onClick={handleAutoRename}
+            disabled={autoScanning || autoRenaming || filteredAutoCandidates.length === 0}
+            className="px-6 py-2 text-sm font-semibold rounded-md bg-red-100 text-red-800 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {autoRenaming
+              ? "Auto-renaming..."
+              : `Auto-rename (${filteredAutoCandidates.length})`}
+          </button>
+        )}
+
         {/* Status bar */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Status
-          </label>
-          <StatusBar
-            scanning={scanning}
-            scanResult={scanResult}
-            days={lastScanDays}
-            namePrefix={lastScanPrefix}
-            includeSubfolders={lastScanSubfolders}
-            hashSkippedHasFallback={lastScanHadFallback}
-            staleAdvancedNotice={
-              isAdvanced && lastScanMode === "simplified" && scanResult !== null
-            }
-          />
+          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          {isAutoRenamer ? (
+            <AutoRenameStatus
+              scanning={autoScanning}
+              renaming={autoRenaming}
+              scanResult={autoScanResult}
+              days={settings.days}
+              prefixScan={settings.name_prefix}
+              includeSubfolders={settings.include_subfolders}
+              fileTypePreset={settings.auto_file_type_preset}
+              prefixSearch={autoPrefixSearch}
+              lastRunMessage={autoLastMessage}
+              lastRunError={autoLastMessageIsError}
+            />
+          ) : (
+            <StatusBar
+              scanning={scanning}
+              scanResult={scanResult}
+              days={lastScanDays}
+              namePrefix={lastScanPrefix}
+              includeSubfolders={lastScanSubfolders}
+              hashSkippedHasFallback={lastScanHadFallback}
+              staleAdvancedNotice={
+                isAdvanced && lastScanMode === "simplified" && scanResult !== null
+              }
+            />
+          )}
         </div>
 
         {/* Results table (advanced only) */}
@@ -635,6 +826,15 @@ export default function App() {
             onDeleteSelected={handleDeleteSelected}
             onCopyReport={handleCopyReport}
             hasResults={hasResults}
+          />
+        )}
+
+        {/* Auto-renamer table */}
+        {isAutoRenamer && autoScanResult !== null && (
+          <AutoRenameTable
+            candidates={filteredAutoCandidates}
+            totalCandidates={autoScanResult.candidates.length}
+            prefixSearch={autoPrefixSearch}
           />
         )}
       </div>

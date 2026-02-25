@@ -51,6 +51,50 @@ pub struct ScanResult {
     pub elapsed_seconds: f64,
 }
 
+/// Candidate file sent to the frontend for auto-renamer mode.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoRenameCandidateDto {
+    pub path: String,
+    pub name: String,
+    pub folder: String,
+    pub extension: String,
+    pub mtime: f64,
+    pub mtime_formatted: String,
+}
+
+/// Scan result for auto-renamer mode.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoRenameScanResult {
+    pub candidates: Vec<AutoRenameCandidateDto>,
+    pub total_files_scanned: usize,
+    pub scan_skipped: usize,
+    pub elapsed_seconds: f64,
+}
+
+/// A successfully renamed file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoRenameItemDto {
+    pub from_path: String,
+    pub to_path: String,
+}
+
+/// A failed rename operation entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoRenameErrorDto {
+    pub path: String,
+    pub message: String,
+}
+
+/// Full auto-rename operation result.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoRenameResult {
+    pub renamed_count: usize,
+    pub skipped_count: usize,
+    pub error_count: usize,
+    pub items: Vec<AutoRenameItemDto>,
+    pub errors: Vec<AutoRenameErrorDto>,
+}
+
 /// Return a human-friendly size string (e.g. "1.00 KB").
 pub fn human_size(num_bytes: u64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB"];

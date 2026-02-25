@@ -1,9 +1,28 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppSettings, ScanParams, ScanResult } from "./types";
+import type {
+  AppSettings,
+  AutoRenameResult,
+  AutoRenameScanParams,
+  AutoRenameScanResult,
+  ScanParams,
+  ScanResult,
+} from "./types";
 
 /** Scan a folder for duplicate files. */
 export async function scan(params: ScanParams): Promise<ScanResult> {
   return invoke("cmd_scan", { ...params });
+}
+
+/** Scan a folder for auto-renamer candidates. */
+export async function scanAutoRename(
+  params: AutoRenameScanParams,
+): Promise<AutoRenameScanResult> {
+  return invoke("cmd_scan_auto_rename", { ...params });
+}
+
+/** Rename files using the auto-renamer pattern. */
+export async function autoRename(paths: string[]): Promise<AutoRenameResult> {
+  return invoke("cmd_auto_rename", { paths });
 }
 
 /** Delete files (move to trash). */

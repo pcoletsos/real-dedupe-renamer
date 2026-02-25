@@ -1,3 +1,4 @@
+mod autorenamer;
 mod commands;
 mod deleter;
 mod grouper;
@@ -16,6 +17,8 @@ pub fn run() {
             commands::cmd_save_settings,
             commands::cmd_open_folder,
             commands::cmd_scan,
+            commands::cmd_scan_auto_rename,
+            commands::cmd_auto_rename,
             commands::cmd_delete,
         ])
         .run(tauri::generate_context!())

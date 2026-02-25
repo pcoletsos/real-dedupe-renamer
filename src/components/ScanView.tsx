@@ -1,4 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import type { ViewMode } from "../types";
 
 interface ScanViewProps {
   folder: string;
@@ -7,8 +8,8 @@ interface ScanViewProps {
   onDaysChange: (days: number) => void;
   onScan: () => void;
   scanning: boolean;
-  viewMode: "simplified" | "advanced";
-  onViewModeChange: (mode: "simplified" | "advanced") => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
   recentFolders: string[];
   onClearHistory: () => void;
   showDays: boolean;
@@ -45,8 +46,9 @@ export default function ScanView({
             name="viewMode"
             checked={viewMode === "simplified"}
             onChange={() => onViewModeChange("simplified")}
+            title="Simplified Duplicate Deletion"
           />
-          Simplified
+          <span title="Simplified Duplicate Deletion">SDD</span>
         </label>
         <label className="flex items-center gap-1.5 text-sm">
           <input
@@ -54,8 +56,18 @@ export default function ScanView({
             name="viewMode"
             checked={viewMode === "advanced"}
             onChange={() => onViewModeChange("advanced")}
+            title="Advanced Duplicate Deletion"
           />
-          Advanced
+          <span title="Advanced Duplicate Deletion">ADD</span>
+        </label>
+        <label className="flex items-center gap-1.5 text-sm">
+          <input
+            type="radio"
+            name="viewMode"
+            checked={viewMode === "auto_renamer"}
+            onChange={() => onViewModeChange("auto_renamer")}
+          />
+          Auto-Renamer
         </label>
       </div>
 

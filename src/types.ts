@@ -24,6 +24,54 @@ export interface ScanResult {
   elapsed_seconds: number;
 }
 
+/** Candidate file DTO for auto-renamer mode. */
+export interface AutoRenameCandidateDto {
+  path: string;
+  name: string;
+  folder: string;
+  extension: string;
+  mtime: number;
+  mtime_formatted: string;
+}
+
+/** Scan result for auto-renamer mode. */
+export interface AutoRenameScanResult {
+  candidates: AutoRenameCandidateDto[];
+  total_files_scanned: number;
+  scan_skipped: number;
+  elapsed_seconds: number;
+}
+
+/** Rename action item for auto-renamer mode. */
+export interface AutoRenameItem {
+  from_path: string;
+  to_path: string;
+}
+
+/** Error item for auto-renamer mode. */
+export interface AutoRenameError {
+  path: string;
+  message: string;
+}
+
+/** Full rename operation result for auto-renamer mode. */
+export interface AutoRenameResult {
+  renamed_count: number;
+  skipped_count: number;
+  error_count: number;
+  items: AutoRenameItem[];
+  errors: AutoRenameError[];
+}
+
+export type ViewMode = "simplified" | "advanced" | "auto_renamer";
+export type AutoFileTypePreset =
+  | "all"
+  | "images"
+  | "videos"
+  | "audio"
+  | "documents"
+  | "archives";
+
 /** Application settings (mirrors Rust AppSettings). */
 export interface AppSettings {
   folder: string;
@@ -39,7 +87,8 @@ export interface AppSettings {
   include_subfolders: boolean;
   name_prefix: string;
   recent_folders: string[];
-  view_mode: "simplified" | "advanced";
+  view_mode: ViewMode;
+  auto_file_type_preset: AutoFileTypePreset;
 }
 
 /** Parameters for the scan command. */
@@ -54,4 +103,13 @@ export interface ScanParams {
   hash_max_mb: number;
   include_subfolders: boolean;
   name_prefix: string;
+}
+
+/** Parameters for the auto-renamer scan command. */
+export interface AutoRenameScanParams {
+  folder: string;
+  days: number;
+  include_subfolders: boolean;
+  name_prefix: string;
+  file_type_preset: AutoFileTypePreset;
 }

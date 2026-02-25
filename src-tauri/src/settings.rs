@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Field names and defaults match the Python version for settings compatibility.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AppSettings {
     pub folder: String,
     pub days: u32,
@@ -23,6 +24,7 @@ pub struct AppSettings {
     pub name_prefix: String,
     pub recent_folders: Vec<String>,
     pub view_mode: String,
+    pub auto_file_type_preset: String,
 }
 
 impl Default for AppSettings {
@@ -45,6 +47,7 @@ impl Default for AppSettings {
             name_prefix: String::new(),
             recent_folders: Vec::new(),
             view_mode: "simplified".into(),
+            auto_file_type_preset: "all".into(),
         }
     }
 }
@@ -110,6 +113,7 @@ mod tests {
         assert!(s.use_hash);
         assert!(!s.use_size);
         assert_eq!(s.view_mode, "simplified");
+        assert_eq!(s.auto_file_type_preset, "all");
     }
 
     #[test]
