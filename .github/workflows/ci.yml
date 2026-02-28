@@ -7,32 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  # Python lint + tests (Phase 1 code)
-  python-lint:
+  frontend-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: "3.12"
-      - run: pip install ruff
-      - run: ruff check .
+          node-version: "22"
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vite build
 
-  python-test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - run: pip install pytest send2trash
-      - run: pytest -v
-
-  # Tauri / Rust (Phase 2 code)
   rust-test:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -51,17 +36,6 @@ jobs:
           workspaces: src-tauri
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
-
-  frontend-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npx vite build
 
   tauri-build:
     needs: [rust-test, frontend-check]

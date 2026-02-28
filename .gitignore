@@ -4,6 +4,7 @@ __pycache__/
 *.log
 .DS_Store
 .duplicate_cleaner_settings.json
+*.egg-info/
 
 # PyInstaller build artifacts
 build/
@@ -15,7 +16,11 @@ dist/
 
 # Node / Vite
 node_modules/
+*.tsbuildinfo
 
 # Rust / Tauri
 src-tauri/target/
 src-tauri/gen/
+
+# Local assistant/tooling state
+.claude/

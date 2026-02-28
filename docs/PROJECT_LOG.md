@@ -1285,3 +1285,26 @@ Files touched:
 - `build/`, `dist/delete_real_duplicates-1.7.15.exe`, `archive/delete_real_duplicates-1.7.14.exe`, `docs/PROJECT_LOG.md`
 Tests:
 - `python -m PyInstaller delete_real_duplicates.spec`
+
+## 2026-02-28 (Cleanup + release automation)
+Date: 2026-02-28
+Intent:
+- Do a first cleanup pass, move to Tauri-forward workflow, and publish binaries via GitHub Releases.
+Status: Done
+User-facing changes:
+- README now documents Tauri as the primary stack and GitHub Releases as the binary distribution channel.
+Internal changes:
+- Removed tracked generated/local files (`*.egg-info`, `tsconfig.tsbuildinfo`, `.claude/settings.local.json`) and an unused frontend module (`src/utils.ts`).
+- Removed unused Rust deps (`rayon`, `thiserror`).
+- Refocused CI on Tauri/frontend/Rust checks.
+- Added release workflow to publish both legacy Python EXE and Tauri bundles to GitHub Releases on tag pushes (plus manual backfill by tag).
+Files touched:
+- `.gitignore`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`
+- `README.md`, `docs/DECISIONS.md`, `docs/ROADMAP.md`, `docs/CODEBASE_ANALYSIS.md`, `docs/FEATURES.md`, `docs/PROJECT_LOG.md`
+- `src-tauri/Cargo.toml`
+- Removed: `.claude/settings.local.json`, `delete_real_duplicates.egg-info/*`, `tsconfig.tsbuildinfo`, `run-tauri-build.bat`, `src/utils.ts`
+Tests:
+- `python -m ruff check .`
+- `python -m pytest -q`
+- `npm run build`
+- `cargo test --manifest-path src-tauri/Cargo.toml` (local environment missing MSVC `link.exe`)

@@ -92,3 +92,12 @@ Options considered:
 - Separate Rust crates — overkill for this project size.
 - Module-per-concern in a single crate (chosen) — right-sized, easy to navigate.
 Consequences: Clean separation from day one. Each Rust module can be tested independently. The frontend can be redesigned without touching backend logic.
+
+## D011 - Tauri-forward development + GitHub Releases for binaries
+Decision: Continue forward development on the Tauri stack, keep the Python app as a legacy build target, and publish all binaries via GitHub Releases instead of storing executables/archives in git.
+Context: The repository now contains both a legacy Python app and a Tauri rewrite. Shipping binaries in the raw repository creates noise and repository bloat.
+Options considered:
+- Keep dual-stack active development in CI and docs.
+- Remove Python entirely.
+- Tauri-forward with legacy Python release compatibility (chosen).
+Consequences: Mainline CI focuses on Tauri quality gates. Release automation builds and publishes both legacy Python and Tauri artifacts to GitHub Releases. Binary artifacts remain out of source control.

@@ -1,9 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-delete_real_duplicates.egg-info/PKG-INFO
-delete_real_duplicates.egg-info/SOURCES.txt
-delete_real_duplicates.egg-info/dependency_links.txt
-delete_real_duplicates.egg-info/requires.txt
-delete_real_duplicates.egg-info/top_level.txt
-tests/test_core.py

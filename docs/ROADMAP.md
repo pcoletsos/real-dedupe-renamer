@@ -1,5 +1,8 @@
 # Roadmap
 
+> Current direction (2026-02-28): Tauri/Rust/React is the forward stack.
+> Python/Tkinter remains as a legacy release target only.
+
 ## How to use this roadmap (for humans and agents)
 - Pick one item, mark its status, and log intent in `docs/PROJECT_LOG.md` before coding.
 - Keep changes small; stop early if scope grows and mark the item [Paused].

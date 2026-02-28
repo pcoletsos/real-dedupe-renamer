@@ -1,6 +1,9 @@
 # Codebase Analysis
 
 > Generated: 2026-02-24 | Analyzer: Claude Code onboarding review
+> Status: **Historical snapshot before the Tauri-first transition.**
+> This document describes an earlier Python-centric state and is intentionally kept for project history.
+> For current direction and release policy, see [README.md](../README.md).
 
 ## High-Level Architecture Summary
 

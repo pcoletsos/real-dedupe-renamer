@@ -1,4 +1,7 @@
-﻿# Features
+# Features
+
+> Note: This file currently reflects the legacy Python feature set.
+> The active development stack is Tauri/Rust/React.
 
 ## Scanning and Matching
 
@@ -89,4 +92,5 @@
 - Where: `delete_real_duplicates.spec`, `dist/delete_real_duplicates-1.7.15.exe`, `archive/`
 - Status: Done
 - How to verify: Run `dist/delete_real_duplicates-1.7.15.exe` or `python delete_real_duplicates.py`.
+
 
