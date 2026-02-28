@@ -1,11 +1,12 @@
 {
   "name": "real-dedupe-renamer",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test:unit": "vitest",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -16,13 +17,14 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
     "@tailwindcss/vite": "^4",
+    "@tauri-apps/cli": "^2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "tailwindcss": "^4",
     "typescript": "~5.6.0",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vitest": "^4.0.18"
   }
 }

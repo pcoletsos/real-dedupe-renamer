@@ -1,7 +1,9 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use crate::types::{AutoRenameErrorDto, AutoRenameItemDto, AutoRenameResult, RenameComponentDef, RenameSchema};
+use crate::types::{
+    AutoRenameErrorDto, AutoRenameItemDto, AutoRenameResult, RenameComponentDef, RenameSchema,
+};
 
 const IMAGE_EXTENSIONS: &[&str] = &[
     "jpg", "jpeg", "png", "gif", "bmp", "webp", "tif", "tiff", "heic", "heif", "svg",
@@ -89,7 +91,11 @@ fn build_name(
             RenameComponentDef::OriginalStem => Some(sanitize_filename_component(original_stem)),
             RenameComponentDef::Literal { value } => {
                 let s = sanitize_filename_component(value);
-                if s.is_empty() { None } else { Some(s) }
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s)
+                }
             }
             RenameComponentDef::Sequence { pad_width } => {
                 // Only emit the sequence token when seq is Some.
@@ -160,14 +166,10 @@ pub fn auto_rename_paths(paths: &[PathBuf], schema: &RenameSchema) -> AutoRename
             .unwrap_or_default();
 
         // Derive created / modified datetimes from metadata.
-        let created_dt: Option<chrono::DateTime<chrono::Local>> = meta
-            .created()
-            .ok()
-            .map(|t| t.into());
-        let modified_dt: Option<chrono::DateTime<chrono::Local>> = meta
-            .modified()
-            .ok()
-            .map(|t| t.into());
+        let created_dt: Option<chrono::DateTime<chrono::Local>> =
+            meta.created().ok().map(|t| t.into());
+        let modified_dt: Option<chrono::DateTime<chrono::Local>> =
+            meta.modified().ok().map(|t| t.into());
 
         // --- Pass 1: try the base name (no sequence number) ---
         let base_name = build_name(
@@ -253,7 +255,8 @@ pub fn auto_rename_paths(paths: &[PathBuf], schema: &RenameSchema) -> AutoRename
 fn sanitize_filename_component(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     for ch in input.chars() {
-        if ch.is_ascii_control() || matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
+        if ch.is_ascii_control()
+            || matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
         {
             out.push('_');
         } else {
@@ -323,7 +326,9 @@ mod tests {
     fn test_build_name_literal() {
         let schema = RenameSchema {
             components: vec![
-                RenameComponentDef::Literal { value: "backup".into() },
+                RenameComponentDef::Literal {
+                    value: "backup".into(),
+                },
                 RenameComponentDef::OriginalStem,
             ],
             separator: "-".into(),
@@ -335,10 +340,7 @@ mod tests {
     #[test]
     fn test_build_name_date_created() {
         use chrono::TimeZone;
-        let dt = chrono::Local
-            .timestamp_opt(1700000000, 0)
-            .single()
-            .unwrap();
+        let dt = chrono::Local.timestamp_opt(1700000000, 0).single().unwrap();
         let schema = RenameSchema {
             components: vec![RenameComponentDef::DateCreated],
             separator: "_".into(),
@@ -444,7 +446,10 @@ mod tests {
     #[test]
     fn test_file_type_filter_is_case_insensitive() {
         assert!(matches_file_type_preset(Path::new("photo.JPEG"), "images"));
-        assert!(matches_file_type_preset(Path::new("report.PDF"), "documents"));
+        assert!(matches_file_type_preset(
+            Path::new("report.PDF"),
+            "documents"
+        ));
         assert!(!matches_file_type_preset(Path::new("photo.JPEG"), "audio"));
     }
 
@@ -452,6 +457,9 @@ mod tests {
     fn test_file_type_filter_all_matches_anything() {
         assert!(matches_file_type_preset(Path::new("whatever.bin"), "all"));
         assert!(matches_file_type_preset(Path::new("README"), "all"));
-        assert!(matches_file_type_preset(Path::new("song.mp3"), "unknown-preset"));
+        assert!(matches_file_type_preset(
+            Path::new("song.mp3"),
+            "unknown-preset"
+        ));
     }
 }

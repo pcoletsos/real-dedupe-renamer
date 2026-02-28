@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use walkdir::WalkDir;
 
-use crate::types::FileEntry;
+use crate::types::{FileEntry, ScanSkipReasons};
 
 /// Return the file size in bytes, or 0 on any error.
 pub fn safe_path_size(path: &Path) -> u64 {
@@ -16,14 +16,14 @@ pub fn safe_path_size(path: &Path) -> u64 {
 /// - `name_prefix` filters by case-insensitive file name prefix.
 /// - `include_subfolders` controls recursive traversal.
 ///
-/// Returns `(entries, skipped_count)`.
+/// Returns `(entries, skip_reason_buckets)`.
 pub fn gather_recent_files(
     folder: &Path,
     days_back: u32,
     name_prefix: Option<&str>,
     include_subfolders: bool,
     progress_cb: Option<&dyn Fn(usize)>,
-) -> (Vec<FileEntry>, usize) {
+) -> (Vec<FileEntry>, ScanSkipReasons) {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs_f64())
@@ -41,13 +41,13 @@ pub fn gather_recent_files(
     let walker = WalkDir::new(folder).max_depth(max_depth);
 
     let mut entries = Vec::new();
-    let mut skipped: usize = 0;
+    let mut skip_reasons = ScanSkipReasons::default();
 
     for result in walker {
         let dir_entry = match result {
             Ok(e) => e,
-            Err(_) => {
-                skipped += 1;
+            Err(err) => {
+                count_walkdir_skip_reason(&mut skip_reasons, &err);
                 continue;
             }
         };
@@ -73,8 +73,8 @@ pub fn gather_recent_files(
         // Read metadata.
         let meta = match std::fs::metadata(path) {
             Ok(m) => m,
-            Err(_) => {
-                skipped += 1;
+            Err(err) => {
+                count_io_skip_reason(&mut skip_reasons, &err);
                 continue;
             }
         };
@@ -111,7 +111,29 @@ pub fn gather_recent_files(
         cb(entries.len());
     }
 
-    (entries, skipped)
+    (entries, skip_reasons)
+}
+
+fn count_walkdir_skip_reason(skip_reasons: &mut ScanSkipReasons, err: &walkdir::Error) {
+    if let Some(io_err) = err.io_error() {
+        count_io_skip_reason(skip_reasons, io_err);
+    } else {
+        skip_reasons.transient_io += 1;
+    }
+}
+
+fn count_io_skip_reason(skip_reasons: &mut ScanSkipReasons, err: &std::io::Error) {
+    match err.kind() {
+        std::io::ErrorKind::PermissionDenied => {
+            skip_reasons.permissions += 1;
+        }
+        std::io::ErrorKind::NotFound => {
+            skip_reasons.missing += 1;
+        }
+        _ => {
+            skip_reasons.transient_io += 1;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -143,7 +165,7 @@ mod tests {
 
         let (entries, skipped) = gather_recent_files(dir.path(), 0, None, true, None);
         assert_eq!(entries.len(), 2);
-        assert_eq!(skipped, 0);
+        assert_eq!(skipped.total(), 0);
     }
 
     #[test]
@@ -166,7 +188,10 @@ mod tests {
         fs::write(&recent, "new").unwrap();
 
         let (entries, _) = gather_recent_files(dir.path(), 7, None, true, None);
-        let names: Vec<String> = entries.iter().map(|e| e.path.file_name().unwrap().to_string_lossy().to_string()).collect();
+        let names: Vec<String> = entries
+            .iter()
+            .map(|e| e.path.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
         assert!(names.contains(&"recent.txt".to_string()));
         assert!(!names.contains(&"old.txt".to_string()));
     }
@@ -223,6 +248,36 @@ mod tests {
         let dir = tempdir().unwrap();
         let (entries, skipped) = gather_recent_files(dir.path(), 0, None, true, None);
         assert!(entries.is_empty());
-        assert_eq!(skipped, 0);
+        assert_eq!(skipped.total(), 0);
+    }
+
+    #[test]
+    fn test_count_io_skip_reason_permission_denied() {
+        let mut reasons = ScanSkipReasons::default();
+        let err = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        count_io_skip_reason(&mut reasons, &err);
+        assert_eq!(reasons.permissions, 1);
+        assert_eq!(reasons.missing, 0);
+        assert_eq!(reasons.transient_io, 0);
+    }
+
+    #[test]
+    fn test_count_io_skip_reason_not_found() {
+        let mut reasons = ScanSkipReasons::default();
+        let err = std::io::Error::from(std::io::ErrorKind::NotFound);
+        count_io_skip_reason(&mut reasons, &err);
+        assert_eq!(reasons.permissions, 0);
+        assert_eq!(reasons.missing, 1);
+        assert_eq!(reasons.transient_io, 0);
+    }
+
+    #[test]
+    fn test_count_io_skip_reason_other_error_is_transient() {
+        let mut reasons = ScanSkipReasons::default();
+        let err = std::io::Error::from(std::io::ErrorKind::Interrupted);
+        count_io_skip_reason(&mut reasons, &err);
+        assert_eq!(reasons.permissions, 0);
+        assert_eq!(reasons.missing, 0);
+        assert_eq!(reasons.transient_io, 1);
     }
 }

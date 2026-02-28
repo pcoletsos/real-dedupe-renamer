@@ -9,18 +9,90 @@ on:
       ref:
         description: "Git tag to build and publish (for backfills, e.g. v2.0.4)"
         required: true
+      publish:
+        description: "Publish to GitHub Release (set false for dry-run validation)"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
 
 permissions:
   contents: write
 
 jobs:
-  build-python-legacy:
-    name: Build Legacy Python EXE (Windows)
-    runs-on: windows-latest
+  validate-release-meta:
+    name: Validate Release Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      should_publish: ${{ steps.meta.outputs.should_publish }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
+      - name: Validate tag + version alignment
+        id: meta
+        env:
+          TAG_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref_name }}
+          DISPATCH_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish || 'true' }}
+        run: |
+          set -euo pipefail
+
+          TAG="${TAG_INPUT}"
+          case "${TAG}" in
+            v*) ;;
+            *)
+              echo "::error::Tag/ref must start with 'v' (got '${TAG}')"
+              exit 1
+              ;;
+          esac
+
+          VERSION="${TAG#v}"
+          CARGO_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -n1)"
+          TAURI_VERSION="$(jq -r '.version' src-tauri/tauri.conf.json)"
+          NPM_VERSION="$(jq -r '.version' package.json)"
+
+          if [ -z "${CARGO_VERSION}" ] || [ -z "${TAURI_VERSION}" ] || [ -z "${NPM_VERSION}" ]; then
+            echo "::error::Failed to parse one or more version sources."
+            exit 1
+          fi
+
+          if [ "${CARGO_VERSION}" != "${TAURI_VERSION}" ]; then
+            echo "::error::Version mismatch: Cargo.toml=${CARGO_VERSION}, tauri.conf.json=${TAURI_VERSION}"
+            exit 1
+          fi
+
+          if [ "${CARGO_VERSION}" != "${NPM_VERSION}" ]; then
+            echo "::error::Version mismatch: Cargo.toml=${CARGO_VERSION}, package.json=${NPM_VERSION}"
+            exit 1
+          fi
+
+          if [ "${CARGO_VERSION}" != "${VERSION}" ]; then
+            echo "::error::Tag version mismatch: tag=${VERSION}, source=${CARGO_VERSION}"
+            exit 1
+          fi
+
+          SHOULD_PUBLISH="true"
+          if [ "${DISPATCH_PUBLISH}" = "false" ]; then
+            SHOULD_PUBLISH="false"
+          fi
+
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "should_publish=${SHOULD_PUBLISH}" >> "${GITHUB_OUTPUT}"
+
+  build-python-legacy:
+    name: Build Legacy Python EXE (Windows)
+    runs-on: windows-latest
+    needs: [validate-release-meta]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-release-meta.outputs.tag }}
 
       - uses: actions/setup-python@v5
         with:
@@ -45,6 +117,7 @@ jobs:
   build-tauri:
     name: Build Tauri (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    needs: [validate-release-meta]
     strategy:
       fail-fast: false
       matrix:
@@ -53,7 +126,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+          ref: ${{ needs.validate-release-meta.outputs.tag }}
 
       - uses: actions/setup-node@v4
         with:
@@ -93,19 +166,12 @@ jobs:
   publish:
     name: Publish GitHub Release Assets
     runs-on: ubuntu-latest
-    needs: [build-python-legacy, build-tauri]
+    needs: [validate-release-meta, build-python-legacy, build-tauri]
 
     steps:
-      - name: Validate workflow_dispatch input
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          case "${{ inputs.ref }}" in
-            v*) ;;
-            *)
-              echo "workflow_dispatch 'ref' must be a tag starting with 'v' (got '${{ inputs.ref }}')"
-              exit 1
-              ;;
-          esac
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-release-meta.outputs.tag }}
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -115,11 +181,68 @@ jobs:
       - name: Show collected assets
         run: find release-assets -maxdepth 6 -type f | sort
 
+      - name: Release smoke-check and stage normalized assets
+        env:
+          TAG: ${{ needs.validate-release-meta.outputs.tag }}
+          VERSION: ${{ needs.validate-release-meta.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          pick_one() {
+            local label="$1"
+            local path_pattern="$2"
+            mapfile -t matches < <(find release-assets -type f -path "$path_pattern" | sort)
+
+            if [ "${#matches[@]}" -ne 1 ]; then
+              echo "::error::Expected exactly one ${label} asset matching '${path_pattern}', found ${#matches[@]}"
+              if [ "${#matches[@]}" -gt 0 ]; then
+                printf '%s\n' "${matches[@]}"
+              fi
+              exit 1
+            fi
+
+            echo "${matches[0]}"
+          }
+
+          mkdir -p release-assets-staged
+
+          PY_EXE="$(pick_one 'legacy Python EXE' '*/python-legacy-windows/*.exe')"
+          WIN_SETUP="$(pick_one 'Windows NSIS installer' '*/tauri-windows-latest/*-setup.exe')"
+          WIN_MSI="$(pick_one 'Windows MSI installer' '*/tauri-windows-latest/*.msi')"
+          MAC_DMG="$(pick_one 'macOS DMG' '*/tauri-macos-latest/*.dmg')"
+          LINUX_APPIMAGE="$(pick_one 'Linux AppImage' '*/tauri-ubuntu-latest/*.AppImage')"
+          LINUX_DEB="$(pick_one 'Linux DEB' '*/tauri-ubuntu-latest/*.deb')"
+          LINUX_RPM="$(pick_one 'Linux RPM' '*/tauri-ubuntu-latest/*.rpm')"
+
+          cp "${PY_EXE}" "release-assets-staged/real-dedupe-renamer-${TAG}-legacy-windows.exe"
+          cp "${WIN_SETUP}" "release-assets-staged/real-dedupe-renamer-${TAG}-windows-setup.exe"
+          cp "${WIN_MSI}" "release-assets-staged/real-dedupe-renamer-${TAG}-windows.msi"
+          cp "${MAC_DMG}" "release-assets-staged/real-dedupe-renamer-${TAG}-macos.dmg"
+          cp "${LINUX_APPIMAGE}" "release-assets-staged/real-dedupe-renamer-${TAG}-linux.AppImage"
+          cp "${LINUX_DEB}" "release-assets-staged/real-dedupe-renamer-${TAG}-linux.deb"
+          cp "${LINUX_RPM}" "release-assets-staged/real-dedupe-renamer-${TAG}-linux.rpm"
+
+          STAGED_COUNT="$(find release-assets-staged -maxdepth 1 -type f | wc -l | tr -d ' ')"
+          if [ "${STAGED_COUNT}" != "7" ]; then
+            echo "::error::Smoke-check failed: expected 7 staged assets, found ${STAGED_COUNT}"
+            exit 1
+          fi
+
+          echo "Validated and staged release assets for ${TAG} (version ${VERSION}):"
+          find release-assets-staged -maxdepth 1 -type f | sort
+
       - name: Publish assets to GitHub Release
+        if: needs.validate-release-meta.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref_name }}
-          name: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref_name }}
+          tag_name: ${{ needs.validate-release-meta.outputs.tag }}
+          name: ${{ needs.validate-release-meta.outputs.tag }}
           generate_release_notes: true
-          files: release-assets/**/*
+          append_body: true
+          body_path: .github/RELEASE_NOTES_TEMPLATE.md
+          files: release-assets-staged/*
           fail_on_unmatched_files: true
+
+      - name: Dry-run complete (publish skipped)
+        if: needs.validate-release-meta.outputs.should_publish != 'true'
+        run: echo "Dry-run mode requested; release assets were validated and staged but not published."

@@ -189,7 +189,8 @@ mod tests {
                 ("c.txt", b"different"),
             ],
         );
-        let (groups, _) = find_duplicate_groups(&entries, true, false, false, false, false, None, None);
+        let (groups, _) =
+            find_duplicate_groups(&entries, true, false, false, false, false, None, None);
         assert_eq!(groups.len(), 1);
         let group = groups.values().next().unwrap();
         let names: std::collections::HashSet<String> = group
@@ -211,7 +212,8 @@ mod tests {
                 ("c.txt", b"cc"),   // different size
             ],
         );
-        let (groups, _) = find_duplicate_groups(&entries, false, true, false, false, false, None, None);
+        let (groups, _) =
+            find_duplicate_groups(&entries, false, true, false, false, false, None, None);
         assert_eq!(groups.len(), 1);
         let group = groups.values().next().unwrap();
         let names: std::collections::HashSet<String> = group
@@ -237,10 +239,19 @@ mod tests {
             .unwrap()
             .as_secs_f64();
         let entries = vec![
-            FileEntry { path: sub1.join("report.txt"), size: 8, mtime: now },
-            FileEntry { path: sub2.join("report.txt"), size: 8, mtime: now },
+            FileEntry {
+                path: sub1.join("report.txt"),
+                size: 8,
+                mtime: now,
+            },
+            FileEntry {
+                path: sub2.join("report.txt"),
+                size: 8,
+                mtime: now,
+            },
         ];
-        let (groups, _) = find_duplicate_groups(&entries, false, false, true, false, false, None, None);
+        let (groups, _) =
+            find_duplicate_groups(&entries, false, false, true, false, false, None, None);
         assert_eq!(groups.len(), 1);
     }
 
@@ -248,7 +259,8 @@ mod tests {
     fn test_no_criteria_returns_empty() {
         let dir = tempdir().unwrap();
         let entries = make_entries(dir.path(), &[("a.txt", b"x")]);
-        let (groups, _) = find_duplicate_groups(&entries, false, false, false, false, false, None, None);
+        let (groups, _) =
+            find_duplicate_groups(&entries, false, false, false, false, false, None, None);
         assert!(groups.is_empty());
     }
 
@@ -262,7 +274,8 @@ mod tests {
                 ("big2.bin", &vec![b'y'; 1000]),
             ],
         );
-        let (_, skipped) = find_duplicate_groups(&entries, true, false, false, false, false, Some(500), None);
+        let (_, skipped) =
+            find_duplicate_groups(&entries, true, false, false, false, false, Some(500), None);
         assert_eq!(skipped, 2);
     }
 
@@ -270,7 +283,8 @@ mod tests {
     fn test_single_file_produces_no_groups() {
         let dir = tempdir().unwrap();
         let entries = make_entries(dir.path(), &[("only.txt", b"alone")]);
-        let (groups, _) = find_duplicate_groups(&entries, true, true, false, false, false, None, None);
+        let (groups, _) =
+            find_duplicate_groups(&entries, true, true, false, false, false, None, None);
         assert!(groups.is_empty());
     }
 
@@ -285,7 +299,8 @@ mod tests {
                 ("c.txt", b"charlie"),
             ],
         );
-        let (groups, _) = find_duplicate_groups(&entries, true, false, false, false, false, None, None);
+        let (groups, _) =
+            find_duplicate_groups(&entries, true, false, false, false, false, None, None);
         assert!(groups.is_empty());
     }
 }

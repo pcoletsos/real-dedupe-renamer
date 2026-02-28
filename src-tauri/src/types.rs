@@ -42,6 +42,20 @@ pub struct DuplicateGroup {
     pub files: Vec<FileEntryDto>,
 }
 
+/// Buckets describing why files were skipped during scan traversal.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ScanSkipReasons {
+    pub permissions: usize,
+    pub missing: usize,
+    pub transient_io: usize,
+}
+
+impl ScanSkipReasons {
+    pub fn total(&self) -> usize {
+        self.permissions + self.missing + self.transient_io
+    }
+}
+
 /// Full scan result sent to the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanResult {
@@ -49,6 +63,7 @@ pub struct ScanResult {
     pub total_files_scanned: usize,
     pub hash_skipped: usize,
     pub scan_skipped: usize,
+    pub scan_skip_reasons: ScanSkipReasons,
     pub elapsed_seconds: f64,
 }
 
@@ -71,6 +86,7 @@ pub struct AutoRenameScanResult {
     pub candidates: Vec<AutoRenameCandidateDto>,
     pub total_files_scanned: usize,
     pub scan_skipped: usize,
+    pub scan_skip_reasons: ScanSkipReasons,
     pub elapsed_seconds: f64,
 }
 

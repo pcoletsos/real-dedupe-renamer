@@ -1,4 +1,4 @@
-import type { ScanProgress, ScanResult } from "../types";
+import type { ScanProgress, ScanResult, ScanSkipReasons } from "../types";
 
 interface StatusBarProps {
   scanning: boolean;
@@ -15,6 +15,10 @@ function formatTime(seconds: number): string {
   if (seconds < 1) return `${seconds.toFixed(2)} s`;
   if (seconds < 60) return `${seconds.toFixed(1)} s`;
   return `${(seconds / 60).toFixed(1)} min`;
+}
+
+function formatSkipNotice(scanSkipped: number, reasons: ScanSkipReasons): string {
+  return `Skipped ${scanSkipped} file(s) during scan (permissions: ${reasons.permissions}, missing: ${reasons.missing}, transient I/O: ${reasons.transient_io}).`;
 }
 
 export default function StatusBar({
@@ -118,9 +122,7 @@ export default function StatusBar({
     );
   }
   if (scanResult.scan_skipped > 0) {
-    notices.push(
-      `Skipped ${scanResult.scan_skipped} file(s) due to scan errors.`,
-    );
+    notices.push(formatSkipNotice(scanResult.scan_skipped, scanResult.scan_skip_reasons));
   }
   if (staleAdvancedNotice) {
     notices.push(

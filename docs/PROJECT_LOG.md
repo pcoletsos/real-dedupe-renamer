@@ -1308,3 +1308,48 @@ Tests:
 - `python -m pytest -q`
 - `npm run build`
 - `cargo test --manifest-path src-tauri/Cargo.toml` (local environment missing MSVC `link.exe`)
+
+## 2026-03-01 (Roadmap refresh - Tauri forward)
+Date: 2026-03-01
+Intent:
+- Replace historical roadmap structure with an actionable forward plan aligned to Tauri-first development.
+Status: Done
+User-facing changes:
+- Clear milestones and near-term priorities for v2.x planning are now documented.
+Internal changes:
+- Rewrote `docs/ROADMAP.md` with milestone-based planning (M0/M1/M2), execution tracks (Release, Product, Quality, Legacy policy), and explicit next-priority queue.
+Files touched:
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- Not run (docs-only change).
+
+## 2026-03-01 (Next-step execution - release hardening + QA gates)
+Date: 2026-03-01
+Intent:
+- Execute the next roadmap priorities: release smoke checks, Rust lint gates, rename-preview tests, skip-reason scan summaries, and release checklist docs.
+Status: Done
+User-facing changes:
+- Scan status now reports skipped-file buckets (`permissions`, `missing`, `transient I/O`) in both duplicate-scan and auto-renamer modes.
+- Added frontend rename-preview unit tests to keep collision/sequence preview behavior aligned with backend expectations.
+Internal changes:
+- CI now runs frontend unit tests and a Rust lint job (`cargo fmt --check`, `cargo clippy -D warnings`).
+- Release workflow now enforces tag/version consistency (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`), supports workflow-dispatch dry-run mode, validates expected asset matrix, and stages normalized release asset names before publish.
+- Aligned `package.json` / `package-lock.json` version to `2.0.4` to match Tauri/Cargo release authority.
+- Added release governance docs: `RELEASE_CHECKLIST.md` and `.github/RELEASE_NOTES_TEMPLATE.md`.
+- Ran full Rust formatting to satisfy the new fmt gate baseline.
+Files touched:
+- `.github/workflows/ci.yml`, `.github/workflows/release.yml`
+- `.github/RELEASE_NOTES_TEMPLATE.md`, `RELEASE_CHECKLIST.md`
+- `package.json`, `package-lock.json`
+- `src/utils/renamePreview.test.ts`, `src/types.ts`
+- `src/components/StatusBar.tsx`, `src/components/AutoRenameStatus.tsx`
+- `src-tauri/src/types.rs`, `src-tauri/src/scanner.rs`, `src-tauri/src/commands.rs`
+- `src-tauri/src/autorenamer.rs`, `src-tauri/src/grouper.rs`, `src-tauri/src/settings.rs` (formatting)
+- `docs/ROADMAP.md`, `docs/PROJECT_LOG.md`
+Tests:
+- `npm run test:unit -- --run` (pass)
+- `npm run build` (pass)
+- `python -m pytest -q` (pass)
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check` (pass)
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` (failed locally: missing MSVC `link.exe`)
+- `cargo test --manifest-path src-tauri/Cargo.toml` (failed locally: missing MSVC `link.exe`)

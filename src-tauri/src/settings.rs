@@ -37,9 +37,7 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            folder: default_downloads_folder()
-                .to_string_lossy()
-                .to_string(),
+            folder: default_downloads_folder().to_string_lossy().to_string(),
             days: 7,
             use_hash: true,
             use_size: false,

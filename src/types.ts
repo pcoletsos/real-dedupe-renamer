@@ -15,12 +15,20 @@ export interface DuplicateGroup {
   files: FileEntryDto[];
 }
 
+/** Buckets describing why files were skipped during scan traversal. */
+export interface ScanSkipReasons {
+  permissions: number;
+  missing: number;
+  transient_io: number;
+}
+
 /** Full scan result from Rust backend. */
 export interface ScanResult {
   groups: DuplicateGroup[];
   total_files_scanned: number;
   hash_skipped: number;
   scan_skipped: number;
+  scan_skip_reasons: ScanSkipReasons;
   elapsed_seconds: number;
 }
 
@@ -41,6 +49,7 @@ export interface AutoRenameScanResult {
   candidates: AutoRenameCandidateDto[];
   total_files_scanned: number;
   scan_skipped: number;
+  scan_skip_reasons: ScanSkipReasons;
   elapsed_seconds: number;
 }
 

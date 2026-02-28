@@ -19,6 +19,10 @@ function formatTime(seconds: number): string {
   return `${(seconds / 60).toFixed(1)} min`;
 }
 
+function formatSkipNotice(scanSkipped: number, reasons: AutoRenameScanResult["scan_skip_reasons"]): string {
+  return `Skipped ${scanSkipped} file(s) during scan (permissions: ${reasons.permissions}, missing: ${reasons.missing}, transient I/O: ${reasons.transient_io}).`;
+}
+
 const FILE_TYPE_LABELS: Record<AutoFileTypePreset, string> = {
   all: "all",
   images: "images",
@@ -73,7 +77,7 @@ export default function AutoRenameStatus({
 
   const notices: string[] = [];
   if (scanResult.scan_skipped > 0) {
-    notices.push(`Skipped ${scanResult.scan_skipped} file(s) due to scan errors.`);
+    notices.push(formatSkipNotice(scanResult.scan_skipped, scanResult.scan_skip_reasons));
   }
   if (lastRunMessage) notices.push(lastRunMessage);
 

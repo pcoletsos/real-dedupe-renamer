@@ -142,8 +142,14 @@ fn scan_blocking(
     } else {
         Some(name_prefix.as_str())
     };
-    let (entries, scan_skipped) =
-        scanner::gather_recent_files(&folder_path, days, prefix, include_subfolders, Some(&scan_progress));
+    let (entries, scan_skip_reasons) = scanner::gather_recent_files(
+        &folder_path,
+        days,
+        prefix,
+        include_subfolders,
+        Some(&scan_progress),
+    );
+    let scan_skipped = scan_skip_reasons.total();
 
     let total_files_scanned = entries.len();
 
@@ -168,8 +174,16 @@ fn scan_blocking(
     };
 
     // Find duplicate groups.
-    let (raw_groups, hash_skipped) =
-        grouper::find_duplicate_groups(&entries, use_hash, use_size, use_name, use_mtime, use_mime, hash_max_bytes, Some(&hash_progress));
+    let (raw_groups, hash_skipped) = grouper::find_duplicate_groups(
+        &entries,
+        use_hash,
+        use_size,
+        use_name,
+        use_mtime,
+        use_mime,
+        hash_max_bytes,
+        Some(&hash_progress),
+    );
 
     // Convert to DTOs for the frontend.
     let groups: Vec<DuplicateGroup> = raw_groups
@@ -215,6 +229,7 @@ fn scan_blocking(
         total_files_scanned,
         hash_skipped,
         scan_skipped,
+        scan_skip_reasons,
         elapsed_seconds: elapsed,
     })
 }
@@ -240,8 +255,9 @@ fn scan_auto_rename_blocking(
     } else {
         Some(name_prefix.as_str())
     };
-    let (entries, scan_skipped) =
+    let (entries, scan_skip_reasons) =
         scanner::gather_recent_files(&folder_path, days, prefix, include_subfolders, None);
+    let scan_skipped = scan_skip_reasons.total();
 
     let total_files_scanned = entries.len();
     let preset = autorenamer::normalize_file_type_preset(&file_type_preset);
@@ -294,6 +310,7 @@ fn scan_auto_rename_blocking(
         candidates,
         total_files_scanned,
         scan_skipped,
+        scan_skip_reasons,
         elapsed_seconds: elapsed,
     })
 }

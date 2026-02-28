@@ -15,8 +15,28 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
+      - run: npm run test:unit -- --run
       - run: npx tsc --noEmit
       - run: npx vite build
+
+  rust-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Run Rust fmt check
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      - name: Run Rust clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
   rust-test:
     runs-on: ${{ matrix.os }}
@@ -38,7 +58,7 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
   tauri-build:
-    needs: [rust-test, frontend-check]
+    needs: [rust-test, frontend-check, rust-lint]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
