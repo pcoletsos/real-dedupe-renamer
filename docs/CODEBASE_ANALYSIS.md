@@ -4,7 +4,7 @@
 
 ## High-Level Architecture Summary
 
-**Delete Real Duplicates** is a single-file Python desktop application (monolith) that finds and removes duplicate files. It is a Tkinter GUI tool targeting Windows, packaged as a standalone `.exe` via PyInstaller.
+**Real Dedupe Renamer** is a single-file Python desktop application (monolith) that finds and removes duplicate files. It is a Tkinter GUI tool targeting Windows, packaged as a standalone `.exe` via PyInstaller.
 
 - **Architecture style:** Monolith — all logic lives in one 1,889-line Python file (`delete_real_duplicates.py`). No modules, no packages, no tests, no build tooling beyond PyInstaller.
 - **Runtime:** CPython 3.9+ with Tkinter (bundled in standard Python). Single external dependency: `send2trash>=1.8.0` (optional, for Recycle Bin deletion).
@@ -27,7 +27,7 @@
 | `docs/ROADMAP.md` | Roadmap with status tags | 5 planned items remain (tests, perf, refactoring) |
 | `docs/PROJECT_LOG.md` | Detailed session-by-session work log | ~48 KB — extensive |
 | `.duplicate_cleaner_settings.sample.json` | Sanitized sample config | Shipped in dist; runtime copy is gitignored |
-| `release-delete-real-duplicates-v1.7.11.zip` | Old release zip in repo root (~11 MB) | Should be in `archive/` or removed |
+| `release-<legacy-name>-v1.7.11.zip` | Old release zip in repo root (~11 MB) | Should be in `archive/` or removed |
 
 ---
 

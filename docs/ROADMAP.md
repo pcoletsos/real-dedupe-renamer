@@ -36,7 +36,7 @@ Goal: Make the current Python app modular, tested, and maintainable. This phase 
 Goal: Rebuild the application as a Rust + Tauri v2 app with a modern web frontend. The Python tests from Phase 1 define the acceptance criteria. See D007 and D010 for architecture details.
 
 ### Scaffold Tauri v2 project
-- [Done] Initialized Tauri v2 project with React + TypeScript + Tailwind CSS v4. Vite bundler, port 1420 dev server. Files: `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`, icons. Result: `npx tauri build --no-bundle` produces `delete-real-duplicates.exe`.
+- [Done] Initialized Tauri v2 project with React + TypeScript + Tailwind CSS v4. Vite bundler, port 1420 dev server. Files: `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`, icons. Result: `npx tauri build --no-bundle` produces `real-dedupe-renamer.exe`.
 
 ### Port core logic to Rust
 - [Done] Implemented 6 Rust modules matching `core.py` behavior: `types.rs` (FileEntry, CriterionValue, DTOs, human_size, describe_key), `scanner.rs` (safe_path_size, gather_recent_files), `hasher.rs` (sha256_file), `grouper.rs` (normalize_name, find_duplicate_groups with size bucketing), `deleter.rs` (delete_files with trash + fallback), `settings.rs` (AppSettings, load/save JSON). Crates: walkdir, sha2, rayon, trash, serde, chrono, directories, thiserror, open. 37 Rust tests pass. Files: `src-tauri/src/*.rs`.

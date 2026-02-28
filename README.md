@@ -1,10 +1,10 @@
-# Delete Real Duplicates
+# Real Dedupe Renamer
 
-Desktop utility to find and remove real duplicate files with a guided UI. It groups duplicates, lets you choose which copy to keep, and can auto-skip prompts when duplicates live in the same folder.
+Desktop utility to find/remove real duplicate files and auto-rename files with a guided UI. It groups duplicates, lets you choose which copy to keep, and can auto-skip prompts when duplicates live in the same folder.
 
 ## Download
 
-Grab the latest Windows executable from [GitHub Releases](https://github.com/TsoliasPN/delete-real-duplicates/releases) — no Python needed. Run it directly or share the EXE.
+Grab the latest Windows executable from [GitHub Releases](https://github.com/TsoliasPN/real-dedupe-renamer/releases) — no Python needed. Run it directly or share the EXE.
 
 ## Run from source (Python 3.9+)
 

@@ -1,4 +1,4 @@
-"""Core business logic for Delete Real Duplicates.
+"""Core business logic for Real Dedupe Renamer.
 
 Scanning, hashing, grouping, and deletion logic -- no UI dependencies.
 """

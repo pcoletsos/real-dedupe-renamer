@@ -1,5 +1,5 @@
 [project]
-name = "delete-real-duplicates"
+name = "real-dedupe-renamer"
 version = "1.7.15"
 requires-python = ">=3.9"
 dependencies = ["send2trash>=1.8.0"]

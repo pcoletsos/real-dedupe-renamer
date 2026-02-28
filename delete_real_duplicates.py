@@ -81,7 +81,7 @@ def _load_help_icon_size(default: int = 14) -> int:
 class DuplicateCleanerUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        root.title(f"Delete Real Duplicates v{__version__}")
+        root.title(f"Real Dedupe Renamer v{__version__}")
 
         self.style = ttk.Style(root)
         if self.style.theme_use() in {"vista", "xpnative", "winnative"}:
@@ -1688,7 +1688,7 @@ class DuplicateCleanerUI:
     def _show_help(self) -> None:
         """Display a simple help dialog with usage tips and examples."""
         help_text = (
-            "Delete Real Duplicates - Usage Guide\n\n"
+            "Real Dedupe Renamer - Usage Guide\n\n"
             "1) Choose Simplified (quick clean) or Advanced (full controls).\n"
             "2) Pick a folder and how many days back to scan. Days=0 scans everything.\n"
             "3) Choose duplicate checks. Hash+Size is safest; add Name/Modified time to tighten matches.\n"

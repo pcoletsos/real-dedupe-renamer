@@ -47,8 +47,8 @@ Internal changes:
 Commits/areas touched:
 - `17491c9` refactor error handling/UI feedback (`delete_real_duplicates.py`)
 - `4c64c56` build/README updates for JSON module (`README.md`, `build/`, `dist/`)
-- `8023106` release zip added (`release-delete-real-duplicates.zip`)
-- `50ee637` rename release artifacts + README tweak (`README.md`, `dist/`, `release-delete-real-duplicates-v1.1.0.zip`)
+- `8023106` release zip added (legacy filename)
+- `50ee637` rename release artifacts + README tweak (`README.md`, `dist/`, legacy release zip)
 - `04bf597` rename-kept feature + settings path update (`delete_real_duplicates.py`, `.duplicate_cleaner_settings.json`)
 - `dfb363f` persist rename_kept_enabled setting (`.duplicate_cleaner_settings.json`)
 Confidence: [Medium]

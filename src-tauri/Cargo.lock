@@ -500,12 +500,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "delete-real-duplicates"
-version = "2.0.0"
+name = "real-dedupe-renamer"
+version = "2.0.4"
 dependencies = [
  "chrono",
  "directories",
  "filetime",
+ "infer 0.16.0",
  "open",
  "rayon",
  "serde",
@@ -1522,6 +1523,15 @@ dependencies = [
  "hashbrown 0.16.1",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "infer"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc150e5ce2330295b8616ce0e3f53250e53af31759a9dbedad1621ba29151847"
+dependencies = [
+ "cfb",
 ]
 
 [[package]]
@@ -3573,7 +3583,7 @@ dependencies = [
  "glob",
  "html5ever",
  "http",
- "infer",
+ "infer 0.19.0",
  "json-patch",
  "kuchikiki",
  "log",
