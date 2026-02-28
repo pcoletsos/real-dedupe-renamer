@@ -1,5 +1,5 @@
 {
-  "name": "delete-real-duplicates",
+  "name": "real-dedupe-renamer",
   "private": true,
   "version": "2.0.0",
   "type": "module",

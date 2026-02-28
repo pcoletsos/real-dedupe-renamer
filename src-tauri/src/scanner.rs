@@ -22,6 +22,7 @@ pub fn gather_recent_files(
     days_back: u32,
     name_prefix: Option<&str>,
     include_subfolders: bool,
+    progress_cb: Option<&dyn Fn(usize)>,
 ) -> (Vec<FileEntry>, usize) {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -97,6 +98,17 @@ pub fn gather_recent_files(
             size: meta.len(),
             mtime,
         });
+
+        if let Some(cb) = &progress_cb {
+            if entries.len() % 100 == 0 {
+                cb(entries.len());
+            }
+        }
+    }
+
+    // Emit final count so the UI sees the exact total.
+    if let Some(cb) = &progress_cb {
+        cb(entries.len());
     }
 
     (entries, skipped)
@@ -129,7 +141,7 @@ mod tests {
         fs::write(dir.path().join("a.txt"), "a").unwrap();
         fs::write(dir.path().join("b.txt"), "b").unwrap();
 
-        let (entries, skipped) = gather_recent_files(dir.path(), 0, None, true);
+        let (entries, skipped) = gather_recent_files(dir.path(), 0, None, true, None);
         assert_eq!(entries.len(), 2);
         assert_eq!(skipped, 0);
     }
@@ -153,7 +165,7 @@ mod tests {
         let recent = dir.path().join("recent.txt");
         fs::write(&recent, "new").unwrap();
 
-        let (entries, _) = gather_recent_files(dir.path(), 7, None, true);
+        let (entries, _) = gather_recent_files(dir.path(), 7, None, true, None);
         let names: Vec<String> = entries.iter().map(|e| e.path.file_name().unwrap().to_string_lossy().to_string()).collect();
         assert!(names.contains(&"recent.txt".to_string()));
         assert!(!names.contains(&"old.txt".to_string()));
@@ -165,7 +177,7 @@ mod tests {
         fs::write(dir.path().join("report_jan.txt"), "a").unwrap();
         fs::write(dir.path().join("notes.txt"), "b").unwrap();
 
-        let (entries, _) = gather_recent_files(dir.path(), 0, Some("report"), true);
+        let (entries, _) = gather_recent_files(dir.path(), 0, Some("report"), true, None);
         assert_eq!(entries.len(), 1);
         assert!(entries[0].path.file_name().unwrap().to_str().unwrap() == "report_jan.txt");
     }
@@ -178,7 +190,7 @@ mod tests {
         fs::write(sub.join("deep.txt"), "deep").unwrap();
         fs::write(dir.path().join("top.txt"), "top").unwrap();
 
-        let (entries, _) = gather_recent_files(dir.path(), 0, None, true);
+        let (entries, _) = gather_recent_files(dir.path(), 0, None, true, None);
         assert_eq!(entries.len(), 2);
     }
 
@@ -190,7 +202,7 @@ mod tests {
         fs::write(sub.join("deep.txt"), "deep").unwrap();
         fs::write(dir.path().join("top.txt"), "top").unwrap();
 
-        let (entries, _) = gather_recent_files(dir.path(), 0, None, false);
+        let (entries, _) = gather_recent_files(dir.path(), 0, None, false, None);
         assert_eq!(entries.len(), 1);
         assert!(entries[0].path.file_name().unwrap().to_str().unwrap() == "top.txt");
     }
@@ -201,7 +213,7 @@ mod tests {
         fs::create_dir(dir.path().join("subdir")).unwrap();
         fs::write(dir.path().join("file.txt"), "x").unwrap();
 
-        let (entries, _) = gather_recent_files(dir.path(), 0, None, true);
+        let (entries, _) = gather_recent_files(dir.path(), 0, None, true, None);
         assert_eq!(entries.len(), 1);
         assert!(entries[0].path.file_name().unwrap().to_str().unwrap() == "file.txt");
     }
@@ -209,7 +221,7 @@ mod tests {
     #[test]
     fn test_empty_folder() {
         let dir = tempdir().unwrap();
-        let (entries, skipped) = gather_recent_files(dir.path(), 0, None, true);
+        let (entries, skipped) = gather_recent_files(dir.path(), 0, None, true, None);
         assert!(entries.is_empty());
         assert_eq!(skipped, 0);
     }

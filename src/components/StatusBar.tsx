@@ -1,8 +1,9 @@
-import type { ScanResult } from "../types";
+import type { ScanProgress, ScanResult } from "../types";
 
 interface StatusBarProps {
   scanning: boolean;
   scanResult: ScanResult | null;
+  scanProgress: ScanProgress | null;
   days: number;
   namePrefix: string;
   includeSubfolders: boolean;
@@ -19,6 +20,7 @@ function formatTime(seconds: number): string {
 export default function StatusBar({
   scanning,
   scanResult,
+  scanProgress,
   days,
   namePrefix,
   includeSubfolders,
@@ -26,11 +28,18 @@ export default function StatusBar({
   staleAdvancedNotice,
 }: StatusBarProps) {
   if (scanning) {
+    const hasProgress = scanProgress !== null;
+    const isHashing = hasProgress && scanProgress.phase === "hashing";
+    const pct =
+      isHashing && scanProgress.total > 0
+        ? Math.round((scanProgress.current / scanProgress.total) * 100)
+        : null;
+
     return (
-      <div className="border border-gray-200 rounded-md p-3 bg-white">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800">
         <div className="flex items-center gap-2">
           <svg
-            className="animate-spin h-4 w-4 text-blue-600"
+            className="animate-spin h-4 w-4 text-blue-600 dark:text-blue-400"
             viewBox="0 0 24 24"
             fill="none"
           >
@@ -48,16 +57,38 @@ export default function StatusBar({
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
             />
           </svg>
-          <span className="text-sm text-gray-600">Scanning...</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {hasProgress ? scanProgress.message : "Scanning..."}
+          </span>
         </div>
+        {/* Progress bar */}
+        {hasProgress && (
+          <div className="mt-2">
+            <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              {pct !== null ? (
+                <div
+                  className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-150"
+                  style={{ width: `${pct}%` }}
+                />
+              ) : (
+                <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse w-full" />
+              )}
+            </div>
+            {pct !== null && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                {pct}% ({scanProgress.current} / {scanProgress.total})
+              </p>
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
   if (!scanResult) {
     return (
-      <div className="border border-gray-200 rounded-md p-3 bg-white">
-        <p className="text-sm text-gray-500">Scan results will appear here.</p>
+      <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Scan results will appear here.</p>
       </div>
     );
   }
@@ -98,10 +129,10 @@ export default function StatusBar({
   }
 
   return (
-    <div className="border border-gray-200 rounded-md p-3 bg-white">
-      <p className="text-sm text-gray-800">{summary}</p>
+    <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800">
+      <p className="text-sm text-gray-800 dark:text-gray-200">{summary}</p>
       {notices.length > 0 && (
-        <p className="text-sm text-amber-700 mt-1">{notices.join(" ")}</p>
+        <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">{notices.join(" ")}</p>
       )}
     </div>
   );

@@ -17,6 +17,7 @@ pub enum CriterionValue {
     Size(u64),
     Name(String),
     Mtime(i64),
+    MimeType(String),
 }
 
 /// A grouping key: ordered list of criterion values.
@@ -58,8 +59,10 @@ pub struct AutoRenameCandidateDto {
     pub name: String,
     pub folder: String,
     pub extension: String,
+    pub size: u64,
     pub mtime: f64,
     pub mtime_formatted: String,
+    pub created: f64, // Unix seconds from file creation time (0 if unavailable)
 }
 
 /// Scan result for auto-renamer mode.
@@ -95,6 +98,39 @@ pub struct AutoRenameResult {
     pub errors: Vec<AutoRenameErrorDto>,
 }
 
+/// Progress event emitted during scanning / hashing phases.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanProgress {
+    pub phase: String,
+    pub current: usize,
+    pub total: usize,
+    pub message: String,
+}
+
+/// Schema defining how files should be renamed.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenameSchema {
+    pub components: Vec<RenameComponentDef>,
+    pub separator: String,
+}
+
+/// A single component in a rename schema.
+///
+/// Serialised with an internal `kind` tag so the JSON looks like
+/// `{"kind":"folder_name"}` or `{"kind":"sequence","pad_width":3}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RenameComponentDef {
+    FolderName,
+    DateCreated,
+    DateModified,
+    TimeCreated,
+    TimeModified,
+    Sequence { pad_width: usize },
+    OriginalStem,
+    Literal { value: String },
+}
+
 /// Return a human-friendly size string (e.g. "1.00 KB").
 pub fn human_size(num_bytes: u64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB"];
@@ -128,6 +164,9 @@ pub fn describe_key(key: &DuplicateKey) -> String {
                     .unwrap_or_default()
                     .with_timezone(&chrono::Local);
                 format!("mtime {}", dt.format("%Y-%m-%d %H:%M:%S"))
+            }
+            CriterionValue::MimeType(mime) => {
+                format!("mime {}", mime)
             }
         })
         .collect();

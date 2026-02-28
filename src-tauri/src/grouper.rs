@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Read;
 
 use crate::hasher;
 use crate::types::{CriterionValue, DuplicateKey, FileEntry};
@@ -29,9 +30,11 @@ pub fn find_duplicate_groups(
     use_size: bool,
     use_name: bool,
     use_mtime: bool,
+    use_mime: bool,
     hash_max_bytes: Option<u64>,
+    progress_cb: Option<&dyn Fn(usize, usize)>,
 ) -> (HashMap<DuplicateKey, Vec<FileEntry>>, usize) {
-    if !use_hash && !use_size && !use_name && !use_mtime {
+    if !use_hash && !use_size && !use_name && !use_mtime && !use_mime {
         return (HashMap::new(), 0);
     }
 
@@ -50,6 +53,18 @@ pub fn find_duplicate_groups(
         vec![entries.iter().collect()]
     };
 
+    // Pre-calculate total files to hash for progress reporting.
+    let total_to_hash: usize = if use_hash {
+        size_buckets
+            .iter()
+            .filter(|b| b.len() > 1)
+            .map(|b| b.len())
+            .sum()
+    } else {
+        0
+    };
+    let mut hashed_count: usize = 0;
+
     for files in &size_buckets {
         let do_hash_here = use_hash && files.len() > 1;
 
@@ -60,12 +75,26 @@ pub fn find_duplicate_groups(
                 if let Some(max_bytes) = hash_max_bytes {
                     if entry.size > max_bytes {
                         hash_skipped += 1;
+                        hashed_count += 1;
+                        if let Some(cb) = &progress_cb {
+                            cb(hashed_count, total_to_hash);
+                        }
                         continue;
                     }
                 }
                 match hasher::sha256_file(&entry.path) {
                     Ok(digest) => components.push(CriterionValue::Hash(digest)),
-                    Err(_) => continue,
+                    Err(_) => {
+                        hashed_count += 1;
+                        if let Some(cb) = &progress_cb {
+                            cb(hashed_count, total_to_hash);
+                        }
+                        continue;
+                    }
+                }
+                hashed_count += 1;
+                if let Some(cb) = &progress_cb {
+                    cb(hashed_count, total_to_hash);
                 }
             }
 
@@ -86,6 +115,11 @@ pub fn find_duplicate_groups(
                 components.push(CriterionValue::Mtime(entry.mtime as i64));
             }
 
+            if use_mime {
+                let mime = detect_mime_type(&entry.path);
+                components.push(CriterionValue::MimeType(mime));
+            }
+
             if components.is_empty() {
                 continue;
             }
@@ -100,6 +134,19 @@ pub fn find_duplicate_groups(
         groups.into_iter().filter(|(_, v)| v.len() > 1).collect();
 
     (filtered, hash_skipped)
+}
+
+/// Detect MIME type by reading the first 8 KB of a file and using magic bytes.
+fn detect_mime_type(path: &std::path::Path) -> String {
+    let mut buf = [0u8; 8192];
+    let n = match std::fs::File::open(path).and_then(|mut f| f.read(&mut buf)) {
+        Ok(n) => n,
+        Err(_) => return "unknown".into(),
+    };
+    match infer::get(&buf[..n]) {
+        Some(kind) => kind.mime_type().to_string(),
+        None => "unknown".into(),
+    }
 }
 
 #[cfg(test)]
@@ -142,7 +189,7 @@ mod tests {
                 ("c.txt", b"different"),
             ],
         );
-        let (groups, _) = find_duplicate_groups(&entries, true, false, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, true, false, false, false, false, None, None);
         assert_eq!(groups.len(), 1);
         let group = groups.values().next().unwrap();
         let names: std::collections::HashSet<String> = group
@@ -164,7 +211,7 @@ mod tests {
                 ("c.txt", b"cc"),   // different size
             ],
         );
-        let (groups, _) = find_duplicate_groups(&entries, false, true, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, false, true, false, false, false, None, None);
         assert_eq!(groups.len(), 1);
         let group = groups.values().next().unwrap();
         let names: std::collections::HashSet<String> = group
@@ -193,7 +240,7 @@ mod tests {
             FileEntry { path: sub1.join("report.txt"), size: 8, mtime: now },
             FileEntry { path: sub2.join("report.txt"), size: 8, mtime: now },
         ];
-        let (groups, _) = find_duplicate_groups(&entries, false, false, true, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, false, false, true, false, false, None, None);
         assert_eq!(groups.len(), 1);
     }
 
@@ -201,7 +248,7 @@ mod tests {
     fn test_no_criteria_returns_empty() {
         let dir = tempdir().unwrap();
         let entries = make_entries(dir.path(), &[("a.txt", b"x")]);
-        let (groups, _) = find_duplicate_groups(&entries, false, false, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, false, false, false, false, false, None, None);
         assert!(groups.is_empty());
     }
 
@@ -215,7 +262,7 @@ mod tests {
                 ("big2.bin", &vec![b'y'; 1000]),
             ],
         );
-        let (_, skipped) = find_duplicate_groups(&entries, true, false, false, false, Some(500));
+        let (_, skipped) = find_duplicate_groups(&entries, true, false, false, false, false, Some(500), None);
         assert_eq!(skipped, 2);
     }
 
@@ -223,7 +270,7 @@ mod tests {
     fn test_single_file_produces_no_groups() {
         let dir = tempdir().unwrap();
         let entries = make_entries(dir.path(), &[("only.txt", b"alone")]);
-        let (groups, _) = find_duplicate_groups(&entries, true, true, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, true, true, false, false, false, None, None);
         assert!(groups.is_empty());
     }
 
@@ -238,7 +285,7 @@ mod tests {
                 ("c.txt", b"charlie"),
             ],
         );
-        let (groups, _) = find_duplicate_groups(&entries, true, false, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, true, false, false, false, false, None, None);
         assert!(groups.is_empty());
     }
 }

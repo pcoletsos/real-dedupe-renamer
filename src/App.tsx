@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { listen } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
 import * as api from "./api";
 import type {
   AppSettings,
   AutoRenameScanResult,
   DuplicateGroup,
+  RenameComponent,
+  ScanProgress,
   ScanResult,
+  Theme,
   ViewMode,
 } from "./types";
+import { DEFAULT_RENAME_COMPONENTS } from "./types";
 import AutoRenamerPanel from "./components/AutoRenamerPanel";
 import AutoRenameStatus from "./components/AutoRenameStatus";
 import AutoRenameTable from "./components/AutoRenameTable";
@@ -24,6 +31,7 @@ const SIMPLIFIED_DEFAULTS: Partial<AppSettings> = {
   use_size: false,
   use_name: false,
   use_mtime: false,
+  use_mime: false,
   hash_limit_enabled: true,
   hash_max_mb: 500,
   include_subfolders: true,
@@ -38,6 +46,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   use_size: true,
   use_name: false,
   use_mtime: false,
+  use_mime: false,
   hash_limit_enabled: true,
   hash_max_mb: 500,
   skip_same_folder_prompt: false,
@@ -47,6 +56,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   recent_folders: [],
   view_mode: "simplified",
   auto_file_type_preset: "all",
+  theme: "system",
+  rename_components: DEFAULT_RENAME_COMPONENTS,
+  rename_separator: "_",
 };
 
 type ConfirmState = {
@@ -85,10 +97,23 @@ export default function App() {
   const [autoPrefixSearch, setAutoPrefixSearch] = useState("");
   const [autoLastMessage, setAutoLastMessage] = useState("");
   const [autoLastMessageIsError, setAutoLastMessageIsError] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const [appVersion, setAppVersion] = useState("");
+
+  // --- Auto-renamer post-scan filter state (frontend-only) ---
+  const [extensionFilter, setExtensionFilter] = useState("");
+  const [minSizeMb, setMinSizeMb] = useState("");
+  const [maxSizeMb, setMaxSizeMb] = useState("");
 
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const closeInFlightRef = useRef(false);
+
+  // Fetch app version from Tauri on mount
+  useEffect(() => {
+    getVersion().then((v) => setAppVersion(v));
+  }, []);
 
   // Load settings on mount
   useEffect(() => {
@@ -98,9 +123,14 @@ export default function App() {
           api.getSettings(),
           api.getDefaultFolder(),
         ]);
-        const merged = { ...DEFAULT_SETTINGS, ...loaded };
+        const merged: AppSettings = { ...DEFAULT_SETTINGS, ...loaded };
         if (!merged.folder) merged.folder = defaultFolder;
         if (!merged.auto_file_type_preset) merged.auto_file_type_preset = "all";
+        // Ensure rename fields have defaults if missing from persisted settings.
+        if (!merged.rename_components || !Array.isArray(merged.rename_components) || merged.rename_components.length === 0) {
+          merged.rename_components = DEFAULT_RENAME_COMPONENTS;
+        }
+        if (!merged.rename_separator) merged.rename_separator = "_";
         setSettings(merged);
       } catch {
         try {
@@ -155,6 +185,65 @@ export default function App() {
     };
   }, [saveSettingsWithTimeout]);
 
+  // Drag-and-drop folder selection
+  useEffect(() => {
+    const unlisten = getCurrentWebview().onDragDropEvent((event) => {
+      if (event.payload.type === "over") {
+        setIsDragging(true);
+      } else if (event.payload.type === "drop") {
+        setIsDragging(false);
+        const paths = event.payload.paths;
+        if (paths.length > 0) {
+          updateSetting("folder", paths[0]);
+        }
+      } else {
+        setIsDragging(false);
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Listen for scan-progress events from backend
+  useEffect(() => {
+    const unlisten = listen<ScanProgress>("scan-progress", (event) => {
+      setScanProgress(event.payload);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Theme management
+  useEffect(() => {
+    const apply = (theme: Theme) => {
+      let dark: boolean;
+      if (theme === "system") {
+        dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      } else {
+        dark = theme === "dark";
+      }
+      document.documentElement.classList.toggle("dark", dark);
+    };
+
+    apply(settings.theme);
+
+    if (settings.theme === "system") {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const handler = () => apply("system");
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, [settings.theme]);
+
+  const cycleTheme = () => {
+    const order: Theme[] = ["light", "dark", "system"];
+    const idx = order.indexOf(settings.theme);
+    const next = order[(idx + 1) % order.length];
+    updateSetting("theme", next);
+  };
+
   const viewMode = settings.view_mode;
 
   const setViewMode = (mode: ViewMode) => {
@@ -166,6 +255,7 @@ export default function App() {
         use_size: settings.use_size,
         use_name: settings.use_name,
         use_mtime: settings.use_mtime,
+        use_mime: settings.use_mime,
         hash_limit_enabled: settings.hash_limit_enabled,
         hash_max_mb: settings.hash_max_mb,
         skip_same_folder_prompt: settings.skip_same_folder_prompt,
@@ -227,7 +317,8 @@ export default function App() {
       !scanSettings.use_hash &&
       !scanSettings.use_size &&
       !scanSettings.use_name &&
-      !scanSettings.use_mtime
+      !scanSettings.use_mtime &&
+      !scanSettings.use_mime
     ) {
       setConfirmState({
         title: "No criteria",
@@ -239,6 +330,7 @@ export default function App() {
 
     setScanning(true);
     setScanResult(null);
+    setScanProgress(null);
     setSelectedPaths(new Set());
     setFilterText("");
 
@@ -250,6 +342,7 @@ export default function App() {
         use_size: scanSettings.use_size,
         use_name: scanSettings.use_name,
         use_mtime: scanSettings.use_mtime,
+        use_mime: scanSettings.use_mime,
         hash_limit_enabled: scanSettings.hash_limit_enabled,
         hash_max_mb: scanSettings.hash_max_mb,
         include_subfolders: scanSettings.include_subfolders,
@@ -263,7 +356,7 @@ export default function App() {
       setLastScanPrefix(scanSettings.name_prefix);
       setLastScanSubfolders(scanSettings.include_subfolders);
       setLastScanHadFallback(
-        scanSettings.use_size || scanSettings.use_name || scanSettings.use_mtime,
+        scanSettings.use_size || scanSettings.use_name || scanSettings.use_mtime || scanSettings.use_mime,
       );
 
       // Simplified mode: auto-prompt delete if duplicates found.
@@ -278,6 +371,7 @@ export default function App() {
       });
     } finally {
       setScanning(false);
+      setScanProgress(null);
       saveSettings();
     }
   };
@@ -321,25 +415,41 @@ export default function App() {
     }
   };
 
+  // --- Filtered candidates (post-scan, frontend-only) ---
   const filteredAutoCandidates = useMemo(() => {
     const candidates = autoScanResult?.candidates ?? [];
+
+    // Prefix search
     const needle = autoPrefixSearch.trim().toLowerCase();
-    if (!needle) return candidates;
-    return candidates.filter((c) => c.name.toLowerCase().startsWith(needle));
-  }, [autoPrefixSearch, autoScanResult]);
+
+    // Extension allow-list: normalise to lowercase with leading dot
+    const rawExts = extensionFilter
+      .split(/[\s,;]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+      .map((e) => (e.startsWith(".") ? e : `.${e}`));
+
+    // Size bounds in bytes
+    const minBytes = minSizeMb !== "" ? parseFloat(minSizeMb) * 1024 * 1024 : null;
+    const maxBytes = maxSizeMb !== "" ? parseFloat(maxSizeMb) * 1024 * 1024 : null;
+
+    return candidates.filter((c) => {
+      if (needle && !c.name.toLowerCase().startsWith(needle)) return false;
+      if (rawExts.length > 0 && !rawExts.includes(c.extension.toLowerCase())) return false;
+      if (minBytes !== null && !isNaN(minBytes) && c.size < minBytes) return false;
+      if (maxBytes !== null && !isNaN(maxBytes) && c.size > maxBytes) return false;
+      return true;
+    });
+  }, [autoPrefixSearch, autoScanResult, extensionFilter, minSizeMb, maxSizeMb]);
 
   const handleAutoRename = () => {
     if (filteredAutoCandidates.length === 0) return;
 
-    const namesHint =
-      "Pattern: folderName_YYYYMMDD_HHMMSS_###.ext\n" +
-      "Only files currently matching Prefix search will be renamed.";
-
     setConfirmState({
       title: "Confirm auto-rename",
       message:
-        `This will rename ${filteredAutoCandidates.length} file(s).\n` +
-        `${namesHint}\n\nProceed?`,
+        `This will rename ${filteredAutoCandidates.length} file(s) using the configured pattern.\n\n` +
+        `Only files currently visible in the table will be renamed.\n\nProceed?`,
       buttons: [
         { label: "Cancel", onClick: () => setConfirmState(null) },
         {
@@ -362,7 +472,10 @@ export default function App() {
     setAutoLastMessageIsError(false);
 
     try {
-      const result = await api.autoRename(paths);
+      const result = await api.autoRename(paths, {
+        components: settings.rename_components,
+        separator: settings.rename_separator,
+      });
       const summaryParts = [`Renamed ${result.renamed_count} file(s).`];
       if (result.skipped_count > 0) {
         summaryParts.push(`Skipped ${result.skipped_count} file(s).`);
@@ -701,14 +814,21 @@ export default function App() {
   const hasResults = scanResult !== null && scanResult.groups.length > 0;
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:text-gray-100">
       <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">
-            Delete Real Duplicates{" "}
-            <span className="text-sm font-normal text-gray-400">v2.0.0</span>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            Real Dedupe Renamer{" "}
+            <span className="text-sm font-normal text-gray-400 dark:text-gray-500">v{appVersion}</span>
           </h1>
+          <button
+            onClick={cycleTheme}
+            className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+            title={`Theme: ${settings.theme}`}
+          >
+            {settings.theme === "light" ? "\u2600\uFE0F" : settings.theme === "dark" ? "\uD83C\uDF19" : "\uD83D\uDCBB"}
+          </button>
         </div>
 
         {/* Scan controls */}
@@ -724,6 +844,7 @@ export default function App() {
           recentFolders={settings.recent_folders}
           onClearHistory={() => setSettings((s) => ({ ...s, recent_folders: [] }))}
           showDays={viewMode !== "simplified"}
+          isDragging={isDragging}
         />
 
         {/* Settings (advanced only) */}
@@ -733,6 +854,7 @@ export default function App() {
             useSize={settings.use_size}
             useName={settings.use_name}
             useMtime={settings.use_mtime}
+            useMime={settings.use_mime}
             hashLimitEnabled={settings.hash_limit_enabled}
             hashMaxMb={settings.hash_max_mb}
             includeSubfolders={settings.include_subfolders}
@@ -749,6 +871,11 @@ export default function App() {
             prefixScan={settings.name_prefix}
             prefixSearch={autoPrefixSearch}
             fileTypePreset={settings.auto_file_type_preset}
+            extensionFilter={extensionFilter}
+            minSizeMb={minSizeMb}
+            maxSizeMb={maxSizeMb}
+            renameComponents={settings.rename_components}
+            renameSeparator={settings.rename_separator}
             onIncludeSubfoldersChange={(value) =>
               updateSetting("include_subfolders", value)
             }
@@ -757,6 +884,15 @@ export default function App() {
             onFileTypePresetChange={(value) =>
               updateSetting("auto_file_type_preset", value)
             }
+            onExtensionFilterChange={setExtensionFilter}
+            onMinSizeMbChange={setMinSizeMb}
+            onMaxSizeMbChange={setMaxSizeMb}
+            onRenameComponentsChange={(components: RenameComponent[]) =>
+              setSettings((s) => ({ ...s, rename_components: components }))
+            }
+            onRenameSeparatorChange={(sep: string) =>
+              setSettings((s) => ({ ...s, rename_separator: sep }))
+            }
           />
         )}
 
@@ -764,7 +900,7 @@ export default function App() {
         {isAdvanced && hasResults && (
           <button
             onClick={handleDeleteDuplicates}
-            className="px-6 py-2 text-sm font-semibold rounded-md bg-red-100 text-red-800 hover:bg-red-200"
+            className="px-6 py-2 text-sm font-semibold rounded-md bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-800/40"
           >
             Delete duplicates
           </button>
@@ -775,7 +911,7 @@ export default function App() {
           <button
             onClick={handleAutoRename}
             disabled={autoScanning || autoRenaming || filteredAutoCandidates.length === 0}
-            className="px-6 py-2 text-sm font-semibold rounded-md bg-red-100 text-red-800 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 text-sm font-semibold rounded-md bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-800/40 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {autoRenaming
               ? "Auto-renaming..."
@@ -785,7 +921,7 @@ export default function App() {
 
         {/* Status bar */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
           {isAutoRenamer ? (
             <AutoRenameStatus
               scanning={autoScanning}
@@ -803,6 +939,7 @@ export default function App() {
             <StatusBar
               scanning={scanning}
               scanResult={scanResult}
+              scanProgress={scanProgress}
               days={lastScanDays}
               namePrefix={lastScanPrefix}
               includeSubfolders={lastScanSubfolders}
@@ -835,6 +972,8 @@ export default function App() {
             candidates={filteredAutoCandidates}
             totalCandidates={autoScanResult.candidates.length}
             prefixSearch={autoPrefixSearch}
+            renameComponents={settings.rename_components}
+            renameSeparator={settings.rename_separator}
           />
         )}
       </div>

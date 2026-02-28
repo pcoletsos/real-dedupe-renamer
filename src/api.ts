@@ -4,6 +4,7 @@ import type {
   AutoRenameResult,
   AutoRenameScanParams,
   AutoRenameScanResult,
+  RenameSchema,
   ScanParams,
   ScanResult,
 } from "./types";
@@ -20,9 +21,12 @@ export async function scanAutoRename(
   return invoke("cmd_scan_auto_rename", { ...params });
 }
 
-/** Rename files using the auto-renamer pattern. */
-export async function autoRename(paths: string[]): Promise<AutoRenameResult> {
-  return invoke("cmd_auto_rename", { paths });
+/** Rename files using the provided schema. */
+export async function autoRename(
+  paths: string[],
+  renameSchema: RenameSchema,
+): Promise<AutoRenameResult> {
+  return invoke("cmd_auto_rename", { paths, rename_schema: renameSchema });
 }
 
 /** Delete files (move to trash). */

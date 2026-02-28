@@ -3,6 +3,7 @@ interface SettingsPanelProps {
   useSize: boolean;
   useName: boolean;
   useMtime: boolean;
+  useMime: boolean;
   hashLimitEnabled: boolean;
   hashMaxMb: number;
   includeSubfolders: boolean;
@@ -16,6 +17,7 @@ export default function SettingsPanel({
   useSize,
   useName,
   useMtime,
+  useMime,
   hashLimitEnabled,
   hashMaxMb,
   includeSubfolders,
@@ -26,8 +28,8 @@ export default function SettingsPanel({
   return (
     <div className="space-y-4">
       {/* Duplicate checks */}
-      <fieldset className="border border-gray-200 rounded-md p-3">
-        <legend className="text-sm font-medium text-gray-700 px-1">
+      <fieldset className="border border-gray-200 dark:border-gray-700 rounded-md p-3">
+        <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 px-1">
           Duplicate checks
         </legend>
         <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -67,6 +69,15 @@ export default function SettingsPanel({
             />
             Modified time
           </label>
+          <label className="flex items-center gap-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={useMime}
+              onChange={(e) => onChange("use_mime", e.target.checked)}
+              className="rounded"
+            />
+            MIME type
+          </label>
         </div>
         <div className="flex items-center gap-2 mt-3">
           <label className="flex items-center gap-1.5 text-sm">
@@ -86,9 +97,9 @@ export default function SettingsPanel({
             onChange={(e) =>
               onChange("hash_max_mb", Math.max(10, Number(e.target.value) || 10))
             }
-            className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
+            className="w-20 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-100"
           />
-          <span className="text-sm text-gray-500">MB</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">MB</span>
         </div>
       </fieldset>
 
@@ -104,7 +115,7 @@ export default function SettingsPanel({
           Include subfolders
         </label>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-gray-700 dark:text-gray-300">
             Only scan file names starting with:
           </span>
           <input
@@ -112,7 +123,7 @@ export default function SettingsPanel({
             value={namePrefix}
             onChange={(e) => onChange("name_prefix", e.target.value)}
             placeholder="(leave blank for all files)"
-            className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
+            className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
       </div>

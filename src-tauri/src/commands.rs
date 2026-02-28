@@ -7,9 +7,10 @@ use crate::grouper;
 use crate::scanner;
 use crate::settings::{self, AppSettings};
 use crate::types::{
-    self, AutoRenameCandidateDto, AutoRenameResult, AutoRenameScanResult, DuplicateGroup, FileEntryDto,
-    ScanResult,
+    self, AutoRenameCandidateDto, AutoRenameResult, AutoRenameScanResult, DuplicateGroup,
+    FileEntryDto, RenameSchema, ScanProgress, ScanResult,
 };
+use tauri::Emitter;
 
 /// Return the default downloads folder path.
 #[tauri::command]
@@ -43,12 +44,14 @@ pub fn cmd_open_folder(path: String) -> Result<(), String> {
 /// during disk I/O and hashing.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn cmd_scan(
+    app: tauri::AppHandle,
     folder: String,
     days: u32,
     use_hash: bool,
     use_size: bool,
     use_name: bool,
     use_mtime: bool,
+    use_mime: bool,
     hash_limit_enabled: bool,
     hash_max_mb: u32,
     include_subfolders: bool,
@@ -58,12 +61,14 @@ pub async fn cmd_scan(
     // runtime.  `spawn_blocking` returns a JoinHandle whose error we convert.
     tokio::task::spawn_blocking(move || {
         scan_blocking(
+            &app,
             folder,
             days,
             use_hash,
             use_size,
             use_name,
             use_mtime,
+            use_mime,
             hash_limit_enabled,
             hash_max_mb,
             include_subfolders,
@@ -98,12 +103,14 @@ pub async fn cmd_scan_auto_rename(
 
 /// The actual scan logic, called inside `spawn_blocking`.
 fn scan_blocking(
+    app: &tauri::AppHandle,
     folder: String,
     days: u32,
     use_hash: bool,
     use_size: bool,
     use_name: bool,
     use_mtime: bool,
+    use_mime: bool,
     hash_limit_enabled: bool,
     hash_max_mb: u32,
     include_subfolders: bool,
@@ -116,6 +123,19 @@ fn scan_blocking(
         return Err(format!("Folder does not exist: {}", folder));
     }
 
+    // Progress callback for the scanning phase.
+    let scan_progress = |count: usize| {
+        let _ = app.emit(
+            "scan-progress",
+            ScanProgress {
+                phase: "scanning".into(),
+                current: count,
+                total: 0,
+                message: format!("Found {} files...", count),
+            },
+        );
+    };
+
     // Gather files.
     let prefix = if name_prefix.is_empty() {
         None
@@ -123,7 +143,7 @@ fn scan_blocking(
         Some(name_prefix.as_str())
     };
     let (entries, scan_skipped) =
-        scanner::gather_recent_files(&folder_path, days, prefix, include_subfolders);
+        scanner::gather_recent_files(&folder_path, days, prefix, include_subfolders, Some(&scan_progress));
 
     let total_files_scanned = entries.len();
 
@@ -134,9 +154,22 @@ fn scan_blocking(
         None
     };
 
+    // Progress callback for the hashing phase.
+    let hash_progress = |current: usize, total: usize| {
+        let _ = app.emit(
+            "scan-progress",
+            ScanProgress {
+                phase: "hashing".into(),
+                current,
+                total,
+                message: format!("Hashing file {} / {}...", current, total),
+            },
+        );
+    };
+
     // Find duplicate groups.
     let (raw_groups, hash_skipped) =
-        grouper::find_duplicate_groups(&entries, use_hash, use_size, use_name, use_mtime, hash_max_bytes);
+        grouper::find_duplicate_groups(&entries, use_hash, use_size, use_name, use_mtime, use_mime, hash_max_bytes, Some(&hash_progress));
 
     // Convert to DTOs for the frontend.
     let groups: Vec<DuplicateGroup> = raw_groups
@@ -208,7 +241,7 @@ fn scan_auto_rename_blocking(
         Some(name_prefix.as_str())
     };
     let (entries, scan_skipped) =
-        scanner::gather_recent_files(&folder_path, days, prefix, include_subfolders);
+        scanner::gather_recent_files(&folder_path, days, prefix, include_subfolders, None);
 
     let total_files_scanned = entries.len();
     let preset = autorenamer::normalize_file_type_preset(&file_type_preset);
@@ -233,13 +266,25 @@ fn scan_auto_rename_blocking(
                 .map(|e| format!(".{}", e.to_string_lossy().to_ascii_lowercase()))
                 .unwrap_or_default();
 
+            let size = entry.size;
+            let created = std::fs::metadata(&entry.path)
+                .and_then(|m| m.created())
+                .map(|t| {
+                    t.duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs_f64()
+                })
+                .unwrap_or(0.0);
+
             AutoRenameCandidateDto {
                 path: entry.path.to_string_lossy().to_string(),
                 name,
                 folder,
                 extension,
+                size,
                 mtime: entry.mtime,
                 mtime_formatted: format_mtime(entry.mtime),
+                created,
             }
         })
         .collect();
@@ -253,12 +298,15 @@ fn scan_auto_rename_blocking(
     })
 }
 
-/// Rename files with the auto-renamer pattern.
-#[tauri::command]
-pub async fn cmd_auto_rename(paths: Vec<String>) -> Result<AutoRenameResult, String> {
+/// Rename files with the auto-renamer schema.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn cmd_auto_rename(
+    paths: Vec<String>,
+    rename_schema: RenameSchema,
+) -> Result<AutoRenameResult, String> {
     tokio::task::spawn_blocking(move || {
         let path_bufs: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
-        Ok(autorenamer::auto_rename_paths(&path_bufs))
+        Ok(autorenamer::auto_rename_paths(&path_bufs, &rename_schema))
     })
     .await
     .map_err(|e| format!("Auto-rename task panicked: {}", e))?

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    delete_real_duplicates_lib::run()
+    real_dedupe_renamer_lib::run()
 }

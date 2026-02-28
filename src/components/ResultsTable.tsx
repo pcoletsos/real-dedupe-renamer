@@ -142,11 +142,11 @@ export default function ResultsTable({
           <button
             onClick={onDeleteSelected}
             disabled={selectedCount === 0}
-            className="px-3 py-1.5 text-sm font-medium rounded-md bg-red-100 text-red-800 hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 text-sm font-medium rounded-md bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-800/40 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Delete selected
           </button>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {selectedCount} file(s) selected / {affectedGroups} group(s)
             affected
           </span>
@@ -154,19 +154,19 @@ export default function ResultsTable({
         <div className="flex items-center gap-2">
           <button
             onClick={onCopyReport}
-            className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             Copy report
           </button>
           <button
             onClick={collapseAll}
-            className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             Collapse all
           </button>
           <button
             onClick={expandAll}
-            className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             Expand all
           </button>
@@ -179,36 +179,36 @@ export default function ResultsTable({
         value={filterText}
         onChange={(e) => onFilterChange(e.target.value)}
         placeholder="Filter by name or folder..."
-        className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+        className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm dark:bg-gray-700 dark:text-gray-100"
       />
 
       {/* Table */}
-      <div className="border border-gray-200 rounded-md overflow-hidden">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <tr>
               <th className="w-8 px-2 py-2" />
               <th className="w-8 px-2 py-2" />
               <th
-                className="text-left px-3 py-2 cursor-pointer hover:bg-gray-100 select-none"
+                className="text-left px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                 onClick={() => handleSort("name")}
               >
                 File / Group{sortArrow("name")}
               </th>
               <th
-                className="text-left px-3 py-2 cursor-pointer hover:bg-gray-100 select-none"
+                className="text-left px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                 onClick={() => handleSort("folder")}
               >
                 Folder / Criteria{sortArrow("folder")}
               </th>
               <th
-                className="text-left px-3 py-2 cursor-pointer hover:bg-gray-100 select-none w-40"
+                className="text-left px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none w-40"
                 onClick={() => handleSort("modified")}
               >
                 Modified{sortArrow("modified")}
               </th>
               <th
-                className="text-right px-3 py-2 cursor-pointer hover:bg-gray-100 select-none w-24"
+                className="text-right px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none w-24"
                 onClick={() => handleSort("size")}
               >
                 Size{sortArrow("size")}
@@ -218,7 +218,7 @@ export default function ResultsTable({
           <tbody>
             {filteredGroups.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-4 text-center text-gray-400">
+                <td colSpan={6} className="px-3 py-4 text-center text-gray-400 dark:text-gray-500">
                   {filterText
                     ? "No groups match filter."
                     : "No duplicate groups."}
@@ -294,7 +294,7 @@ function GroupRows({
   return (
     <>
       {/* Group header row */}
-      <tr className="bg-gray-50 border-t border-gray-100 hover:bg-gray-100">
+      <tr className="bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">
         <td className="px-2 py-1.5 text-center">
           <input
             type="checkbox"
@@ -309,18 +309,18 @@ function GroupRows({
         <td className="px-2 py-1.5 text-center">
           <button
             onClick={onToggleGroup}
-            className="text-gray-500 hover:text-gray-800 text-xs w-4"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xs w-4"
           >
             {expanded ? "\u25BC" : "\u25B6"}
           </button>
         </td>
-        <td className="px-3 py-1.5 font-medium text-gray-800">
+        <td className="px-3 py-1.5 font-medium text-gray-800 dark:text-gray-200">
           {exampleName}{" "}
-          <span className="text-gray-400 font-normal">
+          <span className="text-gray-400 dark:text-gray-500 font-normal">
             ({fileCount} copies)
           </span>
         </td>
-        <td className="px-3 py-1.5 text-gray-500 text-xs">
+        <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400 text-xs">
           {keyDescription}
         </td>
         <td className="px-3 py-1.5" />
@@ -331,8 +331,8 @@ function GroupRows({
         files.map((file) => (
           <tr
             key={file.path}
-            className={`border-t border-gray-50 hover:bg-blue-50 cursor-default ${
-              selectedPaths.has(file.path) ? "bg-blue-50" : ""
+            className={`border-t border-gray-50 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-default ${
+              selectedPaths.has(file.path) ? "bg-blue-50 dark:bg-blue-900/30" : ""
             }`}
             onDoubleClick={() => onOpenFolder(file.folder)}
           >
@@ -345,14 +345,14 @@ function GroupRows({
               />
             </td>
             <td className="px-2 py-1" />
-            <td className="px-3 py-1 pl-8 text-gray-700">{file.name}</td>
-            <td className="px-3 py-1 text-gray-500 text-xs truncate max-w-xs">
+            <td className="px-3 py-1 pl-8 text-gray-700 dark:text-gray-300">{file.name}</td>
+            <td className="px-3 py-1 text-gray-500 dark:text-gray-400 text-xs truncate max-w-xs">
               {file.folder}
             </td>
-            <td className="px-3 py-1 text-gray-500 text-xs whitespace-nowrap">
+            <td className="px-3 py-1 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
               {file.mtime_formatted}
             </td>
-            <td className="px-3 py-1 text-right text-gray-500 text-xs whitespace-nowrap">
+            <td className="px-3 py-1 text-right text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
               {file.size_human}
             </td>
           </tr>

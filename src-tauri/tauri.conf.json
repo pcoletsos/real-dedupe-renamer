@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegoodthings/nicegoodthings.github.io/main/tauri.conf.schema.json",
-  "productName": "Delete Real Duplicates",
-  "version": "2.0.0",
-  "identifier": "com.delete-real-duplicates.app",
+  "productName": "Real Dedupe Renamer",
+  "version": "2.0.4",
+  "identifier": "com.real-dedupe-renamer.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Delete Real Duplicates",
+        "title": "Real Dedupe Renamer",
         "width": 960,
         "height": 700,
         "resizable": true,
@@ -32,6 +32,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "template": "nsis-template.nsi"
+      }
+    }
   }
 }

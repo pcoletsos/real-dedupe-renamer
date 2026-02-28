@@ -1,11 +1,11 @@
 [package]
-name = "delete-real-duplicates"
-version = "2.0.0"
+name = "real-dedupe-renamer"
+version = "2.0.4"
 edition = "2021"
 description = "Find and remove duplicate files"
 
 [lib]
-name = "delete_real_duplicates_lib"
+name = "real_dedupe_renamer_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -25,6 +25,7 @@ directories = "6"
 thiserror = "2"
 open = "5"
 tokio = { version = "1", features = ["rt"] }
+infer = "0.16"
 
 [dev-dependencies]
 tempfile = "3"

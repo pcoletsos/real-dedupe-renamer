@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Prevent text selection on UI elements for a desktop-app feel */
 body {
   -webkit-user-select: none;

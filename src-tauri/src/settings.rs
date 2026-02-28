@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use directories::UserDirs;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 
 /// Application settings, persisted as JSON.
 ///
@@ -15,6 +16,7 @@ pub struct AppSettings {
     pub use_size: bool,
     pub use_name: bool,
     pub use_mtime: bool,
+    pub use_mime: bool,
     pub hash_limit_enabled: bool,
     pub hash_max_mb: u32,
     pub skip_same_folder_prompt: bool,
@@ -25,6 +27,11 @@ pub struct AppSettings {
     pub recent_folders: Vec<String>,
     pub view_mode: String,
     pub auto_file_type_preset: String,
+    pub theme: String,
+    /// Rename-component schema stored as opaque JSON (avoids a circular
+    /// dependency between settings and types modules).
+    pub rename_components: JsonValue,
+    pub rename_separator: String,
 }
 
 impl Default for AppSettings {
@@ -38,6 +45,7 @@ impl Default for AppSettings {
             use_size: false,
             use_name: false,
             use_mtime: false,
+            use_mime: false,
             hash_limit_enabled: true,
             hash_max_mb: 500,
             skip_same_folder_prompt: true,
@@ -48,6 +56,14 @@ impl Default for AppSettings {
             recent_folders: Vec::new(),
             view_mode: "simplified".into(),
             auto_file_type_preset: "all".into(),
+            theme: "system".into(),
+            rename_components: serde_json::json!([
+                { "kind": "folder_name" },
+                { "kind": "date_created" },
+                { "kind": "time_created" },
+                { "kind": "sequence", "pad_width": 3 }
+            ]),
+            rename_separator: "_".into(),
         }
     }
 }
@@ -66,7 +82,7 @@ pub fn default_downloads_folder() -> PathBuf {
 /// Path to the settings JSON file.
 pub fn settings_path() -> PathBuf {
     if let Some(proj_dirs) =
-        directories::ProjectDirs::from("com", "delete-real-duplicates", "Delete Real Duplicates")
+        directories::ProjectDirs::from("com", "real-dedupe-renamer", "Real Dedupe Renamer")
     {
         let config_dir = proj_dirs.config_dir();
         return config_dir.join(".duplicate_cleaner_settings.json");

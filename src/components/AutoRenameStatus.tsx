@@ -42,24 +42,24 @@ export default function AutoRenameStatus({
 }: AutoRenameStatusProps) {
   if (scanning) {
     return (
-      <div className="border border-gray-200 rounded-md p-3 bg-white">
-        <p className="text-sm text-gray-600">Scanning auto-rename candidates...</p>
+      <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800">
+        <p className="text-sm text-gray-600 dark:text-gray-400">Scanning auto-rename candidates...</p>
       </div>
     );
   }
 
   if (renaming) {
     return (
-      <div className="border border-gray-200 rounded-md p-3 bg-white">
-        <p className="text-sm text-gray-600">Renaming files...</p>
+      <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800">
+        <p className="text-sm text-gray-600 dark:text-gray-400">Renaming files...</p>
       </div>
     );
   }
 
   if (!scanResult) {
     return (
-      <div className="border border-gray-200 rounded-md p-3 bg-white">
-        <p className="text-sm text-gray-500">Scan results will appear here.</p>
+      <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Scan results will appear here.</p>
       </div>
     );
   }
@@ -78,12 +78,12 @@ export default function AutoRenameStatus({
   if (lastRunMessage) notices.push(lastRunMessage);
 
   return (
-    <div className="border border-gray-200 rounded-md p-3 bg-white">
-      <p className="text-sm text-gray-800">{summary}</p>
+    <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800">
+      <p className="text-sm text-gray-800 dark:text-gray-200">{summary}</p>
       {notices.length > 0 && (
         <p
           className={`text-sm mt-1 ${
-            lastRunError ? "text-red-700" : "text-amber-700"
+            lastRunError ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"
           }`}
         >
           {notices.join(" ")}
