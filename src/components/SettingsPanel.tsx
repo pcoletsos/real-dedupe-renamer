@@ -1,3 +1,18 @@
+type CriteriaPreset = "safe" | "default" | "aggressive" | "custom";
+
+const PRESETS: Record<Exclude<CriteriaPreset, "custom">, { label: string; hash: boolean; size: boolean; name: boolean; mtime: boolean; mime: boolean }> = {
+  safe:       { label: "Safe (hash only)",       hash: true,  size: false, name: false, mtime: false, mime: false },
+  default:    { label: "Default (hash + size)",   hash: true,  size: true,  name: false, mtime: false, mime: false },
+  aggressive: { label: "Aggressive (all checks)", hash: true,  size: true,  name: true,  mtime: true,  mime: true  },
+};
+
+function detectPreset(h: boolean, s: boolean, n: boolean, m: boolean, mi: boolean): CriteriaPreset {
+  for (const [key, p] of Object.entries(PRESETS) as [Exclude<CriteriaPreset, "custom">, typeof PRESETS[keyof typeof PRESETS]][]) {
+    if (p.hash === h && p.size === s && p.name === n && p.mtime === m && p.mime === mi) return key;
+  }
+  return "custom";
+}
+
 interface SettingsPanelProps {
   useHash: boolean;
   useSize: boolean;
@@ -25,6 +40,18 @@ export default function SettingsPanel({
   skipSameFolderPrompt,
   onChange,
 }: SettingsPanelProps) {
+  const currentPreset = detectPreset(useHash, useSize, useName, useMtime, useMime);
+
+  function applyPreset(key: string) {
+    const p = PRESETS[key as Exclude<CriteriaPreset, "custom">];
+    if (!p) return;
+    onChange("use_hash", p.hash);
+    onChange("use_size", p.size);
+    onChange("use_name", p.name);
+    onChange("use_mtime", p.mtime);
+    onChange("use_mime", p.mime);
+  }
+
   return (
     <div className="space-y-4">
       {/* Duplicate checks */}
@@ -32,6 +59,21 @@ export default function SettingsPanel({
         <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 px-1">
           Duplicate checks
         </legend>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Preset:</span>
+          <select
+            value={currentPreset}
+            onChange={(e) => applyPreset(e.target.value)}
+            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 dark:bg-gray-700 dark:text-gray-100"
+          >
+            {Object.entries(PRESETS).map(([key, { label }]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+            {currentPreset === "custom" && (
+              <option value="custom" disabled>Custom</option>
+            )}
+          </select>
+        </div>
         <div className="flex flex-wrap gap-x-6 gap-y-2">
           <label className="flex items-center gap-1.5 text-sm">
             <input
@@ -79,6 +121,12 @@ export default function SettingsPanel({
             MIME type
           </label>
         </div>
+        {/* Confidence warning */}
+        {!useHash && (
+          <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded text-xs text-amber-800 dark:text-amber-300">
+            Warning: Without content hashing, duplicates are matched by metadata only. Files with identical metadata may have different content.
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-3">
           <label className="flex items-center gap-1.5 text-sm">
             <input
