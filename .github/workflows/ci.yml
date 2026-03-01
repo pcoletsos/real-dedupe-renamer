@@ -15,7 +15,13 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
-      - run: npm run test:unit -- --run
+      - run: npm run test:unit -- --run --reporter=default --reporter=junit --outputFile=test-results/frontend-junit.xml
+      - name: Upload frontend test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: test-results/frontend-junit.xml
       - run: npx tsc --noEmit
       - run: npx vite build
 
@@ -55,7 +61,13 @@ jobs:
         with:
           workspaces: src-tauri
       - name: Run Rust tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --manifest-path src-tauri/Cargo.toml 2>&1 | tee test-results-rust.txt
+      - name: Upload Rust test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-test-results-${{ matrix.os }}
+          path: test-results-rust.txt
 
   tauri-build:
     needs: [rust-test, frontend-check, rust-lint]
