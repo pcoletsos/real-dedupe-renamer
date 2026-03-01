@@ -23,10 +23,38 @@ export default function AutoRenameTable({
     [candidates, renameComponents, renameSeparator],
   );
 
+  function exportCsv() {
+    const header = "Current Name,New Name,Path";
+    const rows = candidates.map((c) => {
+      const newName = previews.get(c.path) ?? c.name;
+      const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+      return `${esc(c.name)},${esc(newName)},${esc(c.path)}`;
+    });
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "rename-plan.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-2">
-      <div className="text-xs text-gray-500 dark:text-gray-400">
-        Showing {candidates.length} of {totalCandidates} candidate file(s).
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          Showing {candidates.length} of {totalCandidates} candidate file(s).
+        </div>
+        {candidates.length > 0 && (
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="text-xs px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Export CSV
+          </button>
+        )}
       </div>
       <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
         <table className="w-full text-sm">

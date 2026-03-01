@@ -13,6 +13,7 @@
 
 import { useRef, useState } from "react";
 import type { RenameComponent, RenameComponentKind } from "../types";
+import { DEFAULT_RENAME_COMPONENTS } from "../types";
 import { buildPreview } from "../utils/renamePreview";
 
 // ---------------------------------------------------------------------------
@@ -157,7 +158,7 @@ export default function RenameComponentBuilder({
         </div>
       </div>
 
-      {/* Separator input */}
+      {/* Separator input + Reset */}
       <div className="flex items-center gap-2">
         <label className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Separator:</label>
         <input
@@ -167,6 +168,18 @@ export default function RenameComponentBuilder({
           maxLength={5}
           className="w-16 border border-gray-300 dark:border-gray-600 rounded px-2 py-0.5 text-xs dark:bg-gray-700 dark:text-gray-100"
         />
+        <button
+          type="button"
+          onClick={() => {
+            onComponentsChange(
+              DEFAULT_RENAME_COMPONENTS.map((c) => ({ ...c, id: nextId() })),
+            );
+            onSeparatorChange("_");
+          }}
+          className="ml-auto text-xs px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          Reset to default
+        </button>
       </div>
 
       {/* Live preview */}
