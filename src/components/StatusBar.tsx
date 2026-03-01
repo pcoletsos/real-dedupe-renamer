@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { ScanProgress, ScanResult, ScanSkipReasons } from "../types";
 
 interface StatusBarProps {
@@ -31,12 +32,40 @@ export default function StatusBar({
   hashSkippedHasFallback,
   staleAdvancedNotice,
 }: StatusBarProps) {
+  const hashStartRef = useRef<number | null>(null);
+
   if (scanning) {
     const hasProgress = scanProgress !== null;
     const isHashing = hasProgress && scanProgress.phase === "hashing";
+    const isScanning = hasProgress && scanProgress.phase === "scanning";
     const pct =
       isHashing && scanProgress.total > 0
         ? Math.round((scanProgress.current / scanProgress.total) * 100)
+        : null;
+
+    // Track hashing start time for ETA
+    if (isHashing && hashStartRef.current === null) {
+      hashStartRef.current = Date.now();
+    }
+    if (!isHashing) {
+      hashStartRef.current = null;
+    }
+
+    // Compute ETA during hashing
+    let eta: string | null = null;
+    if (isHashing && pct !== null && pct > 0 && hashStartRef.current !== null) {
+      const elapsedMs = Date.now() - hashStartRef.current;
+      const remainMs = (elapsedMs / pct) * (100 - pct);
+      const remainSec = remainMs / 1000;
+      eta = remainSec < 60
+        ? `~${Math.ceil(remainSec)}s remaining`
+        : `~${(remainSec / 60).toFixed(1)}min remaining`;
+    }
+
+    const phaseLabel = isHashing
+      ? "Phase 2: Computing hashes"
+      : isScanning
+        ? "Phase 1: Discovering files"
         : null;
 
     return (
@@ -62,7 +91,15 @@ export default function StatusBar({
             />
           </svg>
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            {hasProgress ? scanProgress.message : "Scanning..."}
+            {phaseLabel && scanProgress ? (
+              <>
+                <span className="font-semibold">{phaseLabel}</span>
+                {" — "}
+                {scanProgress.message}
+              </>
+            ) : (
+              "Scanning..."
+            )}
           </span>
         </div>
         {/* Progress bar */}
@@ -81,6 +118,7 @@ export default function StatusBar({
             {pct !== null && (
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 {pct}% ({scanProgress.current} / {scanProgress.total})
+                {eta && <span className="ml-2">{eta}</span>}
               </p>
             )}
           </div>
@@ -88,6 +126,9 @@ export default function StatusBar({
       </div>
     );
   }
+
+  // Reset hashing timer when not scanning
+  hashStartRef.current = null;
 
   if (!scanResult) {
     return (
@@ -111,6 +152,7 @@ export default function StatusBar({
   }
   if (namePrefix) summary += ` Prefix: '${namePrefix}'.`;
   if (!includeSubfolders) summary += " Subfolders: off.";
+  summary += ` Scanned ${scanResult.total_files_scanned} file(s).`;
   summary += ` Time: ${formatTime(scanResult.elapsed_seconds)}`;
 
   const notices: string[] = [];
