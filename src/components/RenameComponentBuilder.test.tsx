@@ -39,9 +39,9 @@ describe("RenameComponentBuilder", () => {
     );
 
     // The preview row has "Preview:" label followed by the preview text
-    const previewRow = container.querySelector(".flex.items-start.gap-2");
+    const previewRow = container.querySelector(".flex.items-start.gap-2") as HTMLElement;
     expect(previewRow).not.toBeNull();
-    const previewSpan = within(previewRow!).getByText(/_/);
+    const previewSpan = within(previewRow).getByText(/_/);
     expect(previewSpan).toBeInTheDocument();
   });
 

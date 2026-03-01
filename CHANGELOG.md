@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 2.1.0
+### Features
+- Scan progress UX: structured phase labels ("Phase 1: Discovering files" / "Phase 2: Computing hashes"), estimated time remaining during hashing, total files scanned in completion summary.
+- Confidence warning when content hashing is disabled, explaining metadata-only matches may include different content.
+- Criteria preset profiles (Safe / Default / Aggressive) for simpler onboarding.
+- CSV export for auto-rename dry-run plans.
+- Schema reset-to-default button in the rename component builder.
+
+### Testing & CI
+- Component test infrastructure: jsdom environment, @testing-library/react, HTMLDialogElement polyfill.
+- Component tests for ConfirmDialog, SettingsPanel, and RenameComponentBuilder (14 new tests, 20 total).
+- CI test artifact uploads: JUnit XML for frontend, text capture for Rust per-OS results.
+
 ## 1.7.15
 - Fix crash when files disappear between scan and delete (safer size calculation).
 

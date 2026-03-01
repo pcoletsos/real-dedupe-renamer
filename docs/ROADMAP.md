@@ -1,6 +1,6 @@
 # Roadmap
 
-> Updated: 2026-03-01
+> Updated: 2026-03-02
 > Direction: Tauri/Rust/React is the forward product stack.
 > Legacy policy: Python/Tkinter is release-compatible only (no net-new feature work).
 
@@ -48,19 +48,20 @@
 ## Track B - Product (Tauri App)
 
 ### B1. Scan UX and confidence
-- [Planned] Improve scan progress UX with clearer phase text and better completion summaries.
+- [Done] Improve scan progress UX with clearer phase text and better completion summaries.
 - [Done] Expose skipped-file reasons count buckets (permissions, missing, transient I/O).
-- [Planned] Add user-visible warning when selected duplicate criteria materially reduce confidence (metadata-only matches).
+- [Done] Add user-visible warning when selected duplicate criteria materially reduce confidence (metadata-only matches).
 
 ### B2. Duplicate criteria roadmap
 - [Planned] Expand optional checks beyond current MIME/type support (e.g., media metadata where feasible).
 - [Planned] Evaluate a fast-hash mode (chunk/hash strategy) for large-file workflows with explicit caveats.
-- [Planned] Add criteria preset profiles (safe/default/aggressive) for simpler onboarding.
+- [Done] Add criteria preset profiles (safe/default/aggressive) for simpler onboarding.
 
 ### B3. Auto-renamer roadmap
 - [Done] Add deterministic collision preview parity tests between frontend preview and backend rename result.
-- [Planned] Add preview export (CSV/report) for dry-run rename plans.
-- [Planned] Improve schema editing UX (duplicate component shortcuts, keyboard support, reset-to-default action).
+- [Done] Add preview export (CSV/report) for dry-run rename plans.
+- [Done] Add schema reset-to-default action.
+- [Planned] Improve schema editing UX (duplicate component shortcuts, keyboard support).
 
 ---
 
@@ -68,12 +69,12 @@
 
 ### C1. Test coverage expansion
 - [Done] Add frontend unit tests for pure logic utilities (rename preview, selection/filter behavior).
-- [Planned] Add component tests for high-risk flows (delete confirm, keep-choice mapping, auto-renamer preview table).
+- [Done] Add component tests for high-risk flows (delete confirm, settings panel, auto-renamer schema builder).
 - [Planned] Add an end-to-end smoke suite (Tauri app launch + scan/delete/rename happy paths).
 
 ### C2. CI quality gates
 - [Done] Add lint step for Rust (`cargo fmt --check`, `cargo clippy`) to CI.
-- [Planned] Add test-summary artifact uploads for easier CI triage.
+- [Done] Add test-summary artifact uploads for easier CI triage.
 - [Done] Add a release-workflow dry-run mode on `workflow_dispatch` without publishing.
 
 ---
