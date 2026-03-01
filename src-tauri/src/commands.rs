@@ -42,6 +42,7 @@ pub fn cmd_open_folder(path: String) -> Result<(), String> {
 ///
 /// Runs on a background thread (async command) so the UI stays responsive
 /// during disk I/O and hashing.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub async fn cmd_scan(
     app: tauri::AppHandle,
@@ -102,6 +103,7 @@ pub async fn cmd_scan_auto_rename(
 }
 
 /// The actual scan logic, called inside `spawn_blocking`.
+#[allow(clippy::too_many_arguments)]
 fn scan_blocking(
     app: &tauri::AppHandle,
     folder: String,

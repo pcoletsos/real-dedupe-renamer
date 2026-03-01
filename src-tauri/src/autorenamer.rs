@@ -362,7 +362,7 @@ mod tests {
         fs::write(&source, b"hello").unwrap();
 
         let schema = folder_stem_schema();
-        let result = auto_rename_paths(&[source.clone()], &schema);
+        let result = auto_rename_paths(std::slice::from_ref(&source), &schema);
         assert_eq!(result.renamed_count, 1);
         assert_eq!(result.error_count, 0);
         assert_eq!(result.skipped_count, 0);

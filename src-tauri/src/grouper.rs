@@ -24,6 +24,7 @@ pub fn normalize_name(name: &str) -> String {
 /// - Skips files exceeding `hash_max_bytes`.
 ///
 /// Returns `(groups, hash_skipped_count)`.
+#[allow(clippy::too_many_arguments)]
 pub fn find_duplicate_groups(
     entries: &[FileEntry],
     use_hash: bool,

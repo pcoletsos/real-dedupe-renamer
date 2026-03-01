@@ -6,6 +6,7 @@ use walkdir::WalkDir;
 use crate::types::{FileEntry, ScanSkipReasons};
 
 /// Return the file size in bytes, or 0 on any error.
+#[allow(dead_code)]
 pub fn safe_path_size(path: &Path) -> u64 {
     std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
 }

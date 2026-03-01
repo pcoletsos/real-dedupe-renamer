@@ -54,7 +54,7 @@ mod tests {
         fs::write(&f, b"data").unwrap();
         assert!(f.exists());
 
-        let result = delete_files(&[f.clone()]);
+        let result = delete_files(std::slice::from_ref(&f));
         // The file should be gone (either trashed or deleted).
         assert!(!f.exists());
         assert_eq!(result.deleted, 1);

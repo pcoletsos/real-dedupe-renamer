@@ -135,9 +135,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
 
-        let mut s = AppSettings::default();
-        s.days = 30;
-        s.folder = "/tmp/test".into();
+        let s = AppSettings {
+            days: 30,
+            folder: "/tmp/test".into(),
+            ..Default::default()
+        };
 
         // Save
         if let Some(parent) = path.parent() {
