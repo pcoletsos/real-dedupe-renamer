@@ -17,8 +17,10 @@ pub struct AppSettings {
     pub use_name: bool,
     pub use_mtime: bool,
     pub use_mime: bool,
+    pub use_media_meta: bool,
     pub hash_limit_enabled: bool,
     pub hash_max_mb: u32,
+    pub fast_hash_oversized: bool,
     pub skip_same_folder_prompt: bool,
     pub rename_kept_enabled: bool,
     pub show_keep_full_paths: bool,
@@ -44,8 +46,10 @@ impl Default for AppSettings {
             use_name: false,
             use_mtime: false,
             use_mime: false,
+            use_media_meta: false,
             hash_limit_enabled: true,
             hash_max_mb: 500,
+            fast_hash_oversized: false,
             skip_same_folder_prompt: true,
             rename_kept_enabled: true,
             show_keep_full_paths: false,
@@ -128,6 +132,22 @@ mod tests {
         assert!(!s.use_size);
         assert_eq!(s.view_mode, "simplified");
         assert_eq!(s.auto_file_type_preset, "all");
+    }
+
+    #[test]
+    fn test_backward_compat_new_fields() {
+        // Simulate loading an old settings file that's missing fast_hash_oversized.
+        let old_json = r#"{
+            "folder": "/tmp",
+            "days": 14,
+            "use_hash": true,
+            "hash_limit_enabled": true,
+            "hash_max_mb": 500
+        }"#;
+        let loaded: AppSettings = serde_json::from_str(old_json).unwrap();
+        assert!(!loaded.fast_hash_oversized); // default false
+        assert!(!loaded.use_media_meta); // default false
+        assert_eq!(loaded.days, 14);
     }
 
     #[test]

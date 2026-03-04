@@ -24,6 +24,7 @@ directories = "6"
 open = "5"
 tokio = { version = "1", features = ["rt"] }
 infer = "0.16"
+kamadak-exif = "0.6"
 
 [dev-dependencies]
 tempfile = "3"

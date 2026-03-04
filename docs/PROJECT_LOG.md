@@ -1,5 +1,8 @@
 # Project Log
 
+> Entries before 2026-02-25 reflect the legacy Python/Tkinter era.
+> The project transitioned to Tauri/Rust/React starting 2026-02-25 (see D007 in DECISIONS.md).
+
 ## 2025-11-28
 Date: 2025-11-28
 User-facing changes:

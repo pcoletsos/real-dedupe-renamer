@@ -5,13 +5,16 @@
  *  - Add components via a dropdown.
  *  - Remove components by clicking ×.
  *  - Reorder components via HTML5 drag-and-drop.
+ *  - Navigate chips with Left/Right arrow keys.
+ *  - Remove focused chip with Delete or Backspace.
+ *  - Duplicate focused chip with Ctrl+D / Cmd+D.
  *  - Edit the separator.
  *  - Edit literal values and sequence pad-width inline.
  *
  * A live preview filename is shown below the chips.
  */
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { RenameComponent, RenameComponentKind } from "../types";
 import { DEFAULT_RENAME_COMPONENTS } from "../types";
 import { buildPreview } from "../utils/renamePreview";
@@ -39,7 +42,7 @@ const ADD_OPTIONS: Array<{ kind: RenameComponentKind; label: string }> = [
   { kind: "time_created", label: "Time (created)" },
   { kind: "time_modified", label: "Time (modified)" },
   { kind: "sequence", label: "Sequence number" },
-  { kind: "literal", label: "Fixed text…" },
+  { kind: "literal", label: "Fixed text\u2026" },
 ];
 
 const CHIP_LABELS: Record<RenameComponentKind, string> = {
@@ -70,6 +73,8 @@ export default function RenameComponentBuilder({
 }: RenameComponentBuilderProps) {
   const dragSrcIdx = useRef<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const chipRowRef = useRef<HTMLDivElement>(null);
 
   // --- mutation helpers ---
 
@@ -82,18 +87,93 @@ export default function RenameComponentBuilder({
   };
 
   const removeComponent = (id: string) => {
-    onComponentsChange(components.filter((c) => c.id !== id));
+    const idx = components.findIndex((c) => c.id === id);
+    const next = components.filter((c) => c.id !== id);
+    onComponentsChange(next);
+    // Adjust focus after removal.
+    if (focusedIndex !== null) {
+      if (next.length === 0) {
+        setFocusedIndex(null);
+      } else if (focusedIndex >= next.length) {
+        setFocusedIndex(next.length - 1);
+      } else if (idx <= focusedIndex && focusedIndex > 0) {
+        setFocusedIndex(focusedIndex - 1);
+      }
+    }
   };
+
+  const duplicateComponent = useCallback(
+    (idx: number) => {
+      if (idx < 0 || idx >= components.length) return;
+      const src = components[idx];
+      const dup: RenameComponent = { ...src, id: nextId() };
+      const next = [...components];
+      next.splice(idx + 1, 0, dup);
+      onComponentsChange(next);
+      setFocusedIndex(idx + 1);
+    },
+    [components, onComponentsChange],
+  );
 
   const updateComponent = (id: string, patch: Partial<RenameComponent>) => {
     onComponentsChange(components.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   };
+
+  // --- keyboard navigation ---
+
+  const handleChipRowKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      // Don't capture keys when typing in an inline input.
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      const len = components.length;
+      if (len === 0) return;
+
+      switch (e.key) {
+        case "ArrowRight": {
+          e.preventDefault();
+          setFocusedIndex((prev) =>
+            prev === null ? 0 : Math.min(prev + 1, len - 1),
+          );
+          break;
+        }
+        case "ArrowLeft": {
+          e.preventDefault();
+          setFocusedIndex((prev) =>
+            prev === null ? len - 1 : Math.max(prev - 1, 0),
+          );
+          break;
+        }
+        case "Delete":
+        case "Backspace": {
+          if (focusedIndex !== null && focusedIndex < len) {
+            e.preventDefault();
+            removeComponent(components[focusedIndex].id);
+          }
+          break;
+        }
+        case "d":
+        case "D": {
+          if ((e.ctrlKey || e.metaKey) && focusedIndex !== null && focusedIndex < len) {
+            e.preventDefault();
+            duplicateComponent(focusedIndex);
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [components, focusedIndex, duplicateComponent, removeComponent],
+  );
 
   // --- drag-and-drop ---
 
   const handleDragStart = (e: React.DragEvent, idx: number) => {
     dragSrcIdx.current = idx;
     e.dataTransfer.effectAllowed = "move";
+    setFocusedIndex(idx);
   };
 
   const handleDragOver = (e: React.DragEvent, idx: number) => {
@@ -106,6 +186,7 @@ export default function RenameComponentBuilder({
     const [moved] = next.splice(src, 1);
     next.splice(idx, 0, moved);
     dragSrcIdx.current = idx;
+    setFocusedIndex(idx);
     onComponentsChange(next);
   };
 
@@ -119,18 +200,45 @@ export default function RenameComponentBuilder({
   return (
     <div className="space-y-3">
       {/* Chip row */}
-      <div className="flex flex-wrap gap-1.5 items-center min-h-[2.25rem]">
+      <div
+        ref={chipRowRef}
+        className="flex flex-wrap gap-1.5 items-center min-h-[2.25rem]"
+        role="listbox"
+        aria-label="Rename components"
+        tabIndex={0}
+        onKeyDown={handleChipRowKeyDown}
+        onFocus={() => {
+          if (focusedIndex === null && components.length > 0) {
+            setFocusedIndex(0);
+          }
+        }}
+        onBlur={(e) => {
+          // Clear focus when leaving the chip row entirely.
+          if (!chipRowRef.current?.contains(e.relatedTarget as Node)) {
+            setFocusedIndex(null);
+          }
+        }}
+      >
         {components.map((comp, idx) => (
           <Chip
             key={comp.id}
             comp={comp}
+            focused={focusedIndex === idx}
             onRemove={() => removeComponent(comp.id)}
             onUpdate={(patch) => updateComponent(comp.id, patch)}
+            onFocus={() => setFocusedIndex(idx)}
             onDragStart={(e) => handleDragStart(e, idx)}
             onDragOver={(e) => handleDragOver(e, idx)}
             onDragEnd={handleDragEnd}
           />
         ))}
+
+        {/* Keyboard shortcut hint */}
+        {focusedIndex !== null && components.length > 0 && (
+          <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 whitespace-nowrap">
+            \u2190\u2192 move \u00B7 Del remove \u00B7 Ctrl+D duplicate
+          </span>
+        )}
 
         {/* Add button */}
         <div className="relative">
@@ -197,25 +305,34 @@ export default function RenameComponentBuilder({
 
 interface ChipProps {
   comp: RenameComponent;
+  focused: boolean;
   onRemove: () => void;
   onUpdate: (patch: Partial<RenameComponent>) => void;
+  onFocus: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragEnd: () => void;
 }
 
-function Chip({ comp, onRemove, onUpdate, onDragStart, onDragOver, onDragEnd }: ChipProps) {
+function Chip({ comp, focused, onRemove, onUpdate, onFocus, onDragStart, onDragOver, onDragEnd }: ChipProps) {
   const label = CHIP_LABELS[comp.kind];
 
   return (
     <div
       draggable
+      role="option"
+      aria-selected={focused}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 cursor-grab select-none border border-blue-200 dark:border-blue-700"
+      onClick={onFocus}
+      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-grab select-none border ${
+        focused
+          ? "bg-blue-200 dark:bg-blue-800/60 text-blue-900 dark:text-blue-100 border-blue-400 dark:border-blue-500 ring-2 ring-blue-400/50 dark:ring-blue-500/50"
+          : "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700"
+      }`}
     >
-      <span className="cursor-grab">⠿</span>
+      <span className="cursor-grab">\u2807</span>
       <span>{label}</span>
 
       {/* Inline editable: literal value */}
@@ -246,11 +363,14 @@ function Chip({ comp, onRemove, onUpdate, onDragStart, onDragOver, onDragEnd }: 
 
       <button
         type="button"
-        onClick={onRemove}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
         className="ml-0.5 text-blue-500 hover:text-red-500 dark:hover:text-red-400 leading-none"
         aria-label={`Remove ${label}`}
       >
-        ×
+        \u00D7
       </button>
     </div>
   );

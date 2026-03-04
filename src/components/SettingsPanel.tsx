@@ -1,14 +1,14 @@
 type CriteriaPreset = "safe" | "default" | "aggressive" | "custom";
 
-const PRESETS: Record<Exclude<CriteriaPreset, "custom">, { label: string; hash: boolean; size: boolean; name: boolean; mtime: boolean; mime: boolean }> = {
-  safe:       { label: "Safe (hash only)",       hash: true,  size: false, name: false, mtime: false, mime: false },
-  default:    { label: "Default (hash + size)",   hash: true,  size: true,  name: false, mtime: false, mime: false },
-  aggressive: { label: "Aggressive (all checks)", hash: true,  size: true,  name: true,  mtime: true,  mime: true  },
+const PRESETS: Record<Exclude<CriteriaPreset, "custom">, { label: string; hash: boolean; size: boolean; name: boolean; mtime: boolean; mime: boolean; mediaMeta: boolean }> = {
+  safe:       { label: "Safe (hash only)",       hash: true,  size: false, name: false, mtime: false, mime: false, mediaMeta: false },
+  default:    { label: "Default (hash + size)",   hash: true,  size: true,  name: false, mtime: false, mime: false, mediaMeta: false },
+  aggressive: { label: "Aggressive (all checks)", hash: true,  size: true,  name: true,  mtime: true,  mime: true,  mediaMeta: true  },
 };
 
-function detectPreset(h: boolean, s: boolean, n: boolean, m: boolean, mi: boolean): CriteriaPreset {
+function detectPreset(h: boolean, s: boolean, n: boolean, m: boolean, mi: boolean, mm: boolean): CriteriaPreset {
   for (const [key, p] of Object.entries(PRESETS) as [Exclude<CriteriaPreset, "custom">, typeof PRESETS[keyof typeof PRESETS]][]) {
-    if (p.hash === h && p.size === s && p.name === n && p.mtime === m && p.mime === mi) return key;
+    if (p.hash === h && p.size === s && p.name === n && p.mtime === m && p.mime === mi && p.mediaMeta === mm) return key;
   }
   return "custom";
 }
@@ -19,8 +19,10 @@ interface SettingsPanelProps {
   useName: boolean;
   useMtime: boolean;
   useMime: boolean;
+  useMediaMeta: boolean;
   hashLimitEnabled: boolean;
   hashMaxMb: number;
+  fastHashOversized: boolean;
   includeSubfolders: boolean;
   namePrefix: string;
   skipSameFolderPrompt: boolean;
@@ -33,14 +35,16 @@ export default function SettingsPanel({
   useName,
   useMtime,
   useMime,
+  useMediaMeta,
   hashLimitEnabled,
   hashMaxMb,
+  fastHashOversized,
   includeSubfolders,
   namePrefix,
   skipSameFolderPrompt,
   onChange,
 }: SettingsPanelProps) {
-  const currentPreset = detectPreset(useHash, useSize, useName, useMtime, useMime);
+  const currentPreset = detectPreset(useHash, useSize, useName, useMtime, useMime, useMediaMeta);
 
   function applyPreset(key: string) {
     const p = PRESETS[key as Exclude<CriteriaPreset, "custom">];
@@ -50,6 +54,7 @@ export default function SettingsPanel({
     onChange("use_name", p.name);
     onChange("use_mtime", p.mtime);
     onChange("use_mime", p.mime);
+    onChange("use_media_meta", p.mediaMeta);
   }
 
   return (
@@ -120,6 +125,15 @@ export default function SettingsPanel({
             />
             MIME type
           </label>
+          <label className="flex items-center gap-1.5 text-sm" title="Match image dimensions via EXIF/PNG metadata (JPEG, PNG, TIFF)">
+            <input
+              type="checkbox"
+              checked={useMediaMeta}
+              onChange={(e) => onChange("use_media_meta", e.target.checked)}
+              className="rounded"
+            />
+            Media dimensions
+          </label>
         </div>
         {/* Confidence warning */}
         {!useHash && (
@@ -149,6 +163,26 @@ export default function SettingsPanel({
           />
           <span className="text-sm text-gray-500 dark:text-gray-400">MB</span>
         </div>
+        {hashLimitEnabled && (
+          <div className="mt-2 ml-5">
+            <label className="flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={fastHashOversized}
+                onChange={(e) =>
+                  onChange("fast_hash_oversized", e.target.checked)
+                }
+                className="rounded"
+              />
+              Fast-hash files exceeding the limit (head + tail sampling)
+            </label>
+            {fastHashOversized && (
+              <div className="mt-1 p-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded text-xs text-amber-800 dark:text-amber-300">
+                Fast hash reads only the first and last 64 KB. Files with identical head/tail but different middles will appear as duplicates.
+              </div>
+            )}
+          </div>
+        )}
       </fieldset>
 
       {/* Scan options */}

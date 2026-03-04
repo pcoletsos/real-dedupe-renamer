@@ -1,6 +1,10 @@
 # Decisions
 
-## D001 - Tkinter desktop UI in Python
+> Decisions D001–D006 and D008–D009 document the legacy Python era.
+> The project transitioned to Tauri/Rust/React starting at D007.
+> See [LEGACY_PYTHON_POLICY.md](LEGACY_PYTHON_POLICY.md) for the current legacy Python scope policy.
+
+## D001 - Tkinter desktop UI in Python *(legacy)*
 Decision: Build the tool as a Tkinter GUI driven by a single Python script.
 Context: The project targets a simple Windows-friendly desktop utility without heavyweight dependencies.
 Options considered: CLI-only tool; alternative GUI frameworks (Qt, Electron); web UI.
@@ -12,7 +16,7 @@ Context: Need accurate duplicate detection while keeping scans fast on large dir
 Options considered: Hash-only; size-only; partial hashing; metadata-only checks.
 Consequences: Accurate matches when hashing is on, with faster scans via size bucketing; large files may be skipped if the hash size cap is enabled.
 
-## D003 - Local JSON settings file in the app working directory
+## D003 - Local JSON settings file in the app working directory *(legacy)*
 Decision: Persist settings in `.duplicate_cleaner_settings.json` alongside the app.
 Context: Keep user choices between runs and support both source and packaged EXE execution.
 Options considered: OS-specific config directories; registry settings; no persistence.
@@ -24,13 +28,13 @@ Context: Minimize the risk of accidental permanent deletions.
 Options considered: Always hard delete; custom recycle implementation.
 Consequences: Safer deletions when dependency is installed; behavior falls back to hard delete if missing.
 
-## D005 - Windows distribution via PyInstaller one-file EXE
+## D005 - Windows distribution via PyInstaller one-file EXE *(legacy)*
 Decision: Package a windowed EXE using PyInstaller (`delete_real_duplicates.spec`).
 Context: Users should be able to run the tool without installing Python.
 Options considered: Source-only distribution; installer-based packaging.
 Consequences: Large build artifacts and versioned EXEs tracked in `dist/`; documentation must stay aligned with build versions.
 
-## D006 - Ignore runtime settings in git and ship a sanitized sample
+## D006 - Ignore runtime settings in git and ship a sanitized sample *(legacy)*
 Decision: Stop committing `.duplicate_cleaner_settings.json` and provide a sanitized `.duplicate_cleaner_settings.sample.json` for builds/releases.
 Context: The committed settings files contained user-specific paths and should not ship in release artifacts.
 Options considered: Keep a tracked settings file; move settings to an OS config directory; rely on defaults only.
@@ -47,7 +51,7 @@ Options considered:
 - **Rust + Tauri v2** (chosen) — native OS webview (WebView2 on Windows, WebKit on macOS), full HTML/CSS/JS design freedom, Rust backend excels at file I/O and hashing (10-50x faster than Python for CPU/IO-bound work), small binary, no GC pauses.
 Consequences: Steep initial learning curve for Rust. Two-language stack (Rust + JS/TS). Full UI rebuild required. However, the core logic is small (~200 lines) and straightforward to port. The result will be a genuinely modern, fast, cross-platform application.
 
-## D008 - Extract core Python logic before rewriting
+## D008 - Extract core Python logic before rewriting *(legacy)*
 Decision: Before starting the Tauri rewrite, extract all business logic from `delete_real_duplicates.py` into a standalone `core.py` module with clean inputs/outputs, separate from Tkinter UI code.
 Context: The current 1,900-line single file mixes business logic (scanning, hashing, grouping, deletion) with 1,650 lines of Tkinter UI code. This coupling makes it impossible to test the logic independently and makes the rewrite harder because a porter would need to untangle UI state from domain logic simultaneously.
 Options considered:
@@ -55,7 +59,7 @@ Options considered:
 - Extract first, then rewrite — adds a step but produces a clear specification of what the Rust backend must do.
 Consequences: Extra work in a codebase that will eventually be replaced, but the extracted module (a) is immediately valuable for testing and maintenance of the current Python version, (b) serves as a precise porting guide for the Rust rewrite, and (c) reduces risk of behavioral regressions during the rewrite.
 
-## D009 - Add automated tests as the behavioral specification for the rewrite
+## D009 - Add automated tests as the behavioral specification for the rewrite *(legacy)*
 Decision: Write unit tests against the extracted `core.py` module. These tests define the expected behavior that any future implementation (Python or Rust) must satisfy.
 Context: The project currently has zero automated tests. Any refactor or rewrite carries regression risk. Tests written against the current Python logic become the acceptance criteria for the Rust port — if the Rust implementation passes equivalent test cases, it is behaviorally correct.
 Options considered:

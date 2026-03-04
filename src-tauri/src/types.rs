@@ -14,14 +14,29 @@ pub struct FileEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CriterionValue {
     Hash(String),
+    FastHash(String),
     Size(u64),
     Name(String),
     Mtime(i64),
     MimeType(String),
+    MediaMeta(String),
 }
 
 /// A grouping key: ordered list of criterion values.
 pub type DuplicateKey = Vec<CriterionValue>;
+
+/// Configuration for duplicate grouping criteria.
+#[derive(Debug, Clone)]
+pub struct GroupingConfig {
+    pub use_hash: bool,
+    pub use_size: bool,
+    pub use_name: bool,
+    pub use_mtime: bool,
+    pub use_mime: bool,
+    pub use_media_meta: bool,
+    pub hash_max_bytes: Option<u64>,
+    pub fast_hash_oversized: bool,
+}
 
 /// File entry DTO sent to the frontend via Tauri commands.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +184,10 @@ pub fn describe_key(key: &DuplicateKey) -> String {
                 let short: String = digest.chars().take(8).collect();
                 format!("sha256 {}...", short)
             }
+            CriterionValue::FastHash(digest) => {
+                let short: String = digest.chars().take(8).collect();
+                format!("fast-hash {}...", short)
+            }
             CriterionValue::Size(size) => {
                 format!("size {}", human_size(*size))
             }
@@ -183,6 +202,9 @@ pub fn describe_key(key: &DuplicateKey) -> String {
             }
             CriterionValue::MimeType(mime) => {
                 format!("mime {}", mime)
+            }
+            CriterionValue::MediaMeta(meta) => {
+                format!("media {}", meta)
             }
         })
         .collect();
@@ -265,6 +287,22 @@ mod tests {
         assert!(result.contains(" | "));
         assert!(result.contains("sha256"));
         assert!(result.contains("KB"));
+    }
+
+    #[test]
+    fn test_describe_key_media_meta() {
+        let key = vec![CriterionValue::MediaMeta("img:1920x1080".into())];
+        let result = describe_key(&key);
+        assert!(result.contains("media"));
+        assert!(result.contains("1920x1080"));
+    }
+
+    #[test]
+    fn test_describe_key_fast_hash() {
+        let key = vec![CriterionValue::FastHash("abcdef1234567890".into())];
+        let result = describe_key(&key);
+        assert!(result.contains("fast-hash"));
+        assert!(result.contains("abcdef12"));
     }
 
     #[test]
