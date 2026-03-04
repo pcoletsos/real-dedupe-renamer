@@ -36,7 +36,7 @@ npm run tauri build
 
 ## Legacy Python Build (Release Compatibility)
 
-The legacy Python app is no longer the primary development target, but remains buildable for release assets.
+The legacy Python app is **feature-frozen** — only critical bug, security, and compatibility fixes are accepted. It remains buildable and published in each `v2.*` release. See [docs/LEGACY_PYTHON_POLICY.md](docs/LEGACY_PYTHON_POLICY.md) for the full scope and deprecation policy.
 
 ```bash
 python -m pip install -r requirements.txt

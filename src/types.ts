@@ -139,8 +139,10 @@ export interface AppSettings {
   use_name: boolean;
   use_mtime: boolean;
   use_mime: boolean;
+  use_media_meta: boolean;
   hash_limit_enabled: boolean;
   hash_max_mb: number;
+  fast_hash_oversized: boolean;
   skip_same_folder_prompt: boolean;
   show_keep_full_paths: boolean;
   include_subfolders: boolean;
@@ -163,8 +165,10 @@ export interface ScanParams {
   use_name: boolean;
   use_mtime: boolean;
   use_mime: boolean;
+  use_media_meta: boolean;
   hash_limit_enabled: boolean;
   hash_max_mb: number;
+  fast_hash_oversized: boolean;
   include_subfolders: boolean;
   name_prefix: string;
 }

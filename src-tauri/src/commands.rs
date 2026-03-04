@@ -8,7 +8,7 @@ use crate::scanner;
 use crate::settings::{self, AppSettings};
 use crate::types::{
     self, AutoRenameCandidateDto, AutoRenameResult, AutoRenameScanResult, DuplicateGroup,
-    FileEntryDto, RenameSchema, ScanProgress, ScanResult,
+    FileEntryDto, GroupingConfig, RenameSchema, ScanProgress, ScanResult,
 };
 use tauri::Emitter;
 
@@ -53,8 +53,10 @@ pub async fn cmd_scan(
     use_name: bool,
     use_mtime: bool,
     use_mime: bool,
+    use_media_meta: bool,
     hash_limit_enabled: bool,
     hash_max_mb: u32,
+    fast_hash_oversized: bool,
     include_subfolders: bool,
     name_prefix: String,
 ) -> Result<ScanResult, String> {
@@ -70,8 +72,10 @@ pub async fn cmd_scan(
             use_name,
             use_mtime,
             use_mime,
+            use_media_meta,
             hash_limit_enabled,
             hash_max_mb,
+            fast_hash_oversized,
             include_subfolders,
             name_prefix,
         )
@@ -113,8 +117,10 @@ fn scan_blocking(
     use_name: bool,
     use_mtime: bool,
     use_mime: bool,
+    use_media_meta: bool,
     hash_limit_enabled: bool,
     hash_max_mb: u32,
+    fast_hash_oversized: bool,
     include_subfolders: bool,
     name_prefix: String,
 ) -> Result<ScanResult, String> {
@@ -155,11 +161,20 @@ fn scan_blocking(
 
     let total_files_scanned = entries.len();
 
-    // Compute hash_max_bytes.
-    let hash_max_bytes: Option<u64> = if hash_limit_enabled {
-        Some(u64::from(hash_max_mb) * 1024 * 1024)
-    } else {
-        None
+    // Build grouping configuration.
+    let grouping_config = GroupingConfig {
+        use_hash,
+        use_size,
+        use_name,
+        use_mtime,
+        use_mime,
+        use_media_meta,
+        hash_max_bytes: if hash_limit_enabled {
+            Some(u64::from(hash_max_mb) * 1024 * 1024)
+        } else {
+            None
+        },
+        fast_hash_oversized,
     };
 
     // Progress callback for the hashing phase.
@@ -178,12 +193,7 @@ fn scan_blocking(
     // Find duplicate groups.
     let (raw_groups, hash_skipped) = grouper::find_duplicate_groups(
         &entries,
-        use_hash,
-        use_size,
-        use_name,
-        use_mtime,
-        use_mime,
-        hash_max_bytes,
+        &grouping_config,
         Some(&hash_progress),
     );
 

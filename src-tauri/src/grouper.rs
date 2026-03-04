@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::io::Read;
 
 use crate::hasher;
-use crate::types::{CriterionValue, DuplicateKey, FileEntry};
+use crate::media_meta;
+use crate::types::{CriterionValue, DuplicateKey, FileEntry, GroupingConfig};
 
 /// Normalize a file name for comparison (case-insensitive on Windows).
 pub fn normalize_name(name: &str) -> String {
@@ -24,18 +25,18 @@ pub fn normalize_name(name: &str) -> String {
 /// - Skips files exceeding `hash_max_bytes`.
 ///
 /// Returns `(groups, hash_skipped_count)`.
-#[allow(clippy::too_many_arguments)]
 pub fn find_duplicate_groups(
     entries: &[FileEntry],
-    use_hash: bool,
-    use_size: bool,
-    use_name: bool,
-    use_mtime: bool,
-    use_mime: bool,
-    hash_max_bytes: Option<u64>,
+    config: &GroupingConfig,
     progress_cb: Option<&dyn Fn(usize, usize)>,
 ) -> (HashMap<DuplicateKey, Vec<FileEntry>>, usize) {
-    if !use_hash && !use_size && !use_name && !use_mtime && !use_mime {
+    if !config.use_hash
+        && !config.use_size
+        && !config.use_name
+        && !config.use_mtime
+        && !config.use_mime
+        && !config.use_media_meta
+    {
         return (HashMap::new(), 0);
     }
 
@@ -43,7 +44,7 @@ pub fn find_duplicate_groups(
     let mut hash_skipped: usize = 0;
 
     // Bucket by size first to reduce hashing work when hashing is enabled.
-    let size_buckets: Vec<Vec<&FileEntry>> = if use_hash {
+    let size_buckets: Vec<Vec<&FileEntry>> = if config.use_hash {
         let mut buckets: HashMap<u64, Vec<&FileEntry>> = HashMap::new();
         for entry in entries {
             buckets.entry(entry.size).or_default().push(entry);
@@ -55,7 +56,7 @@ pub fn find_duplicate_groups(
     };
 
     // Pre-calculate total files to hash for progress reporting.
-    let total_to_hash: usize = if use_hash {
+    let total_to_hash: usize = if config.use_hash {
         size_buckets
             .iter()
             .filter(|b| b.len() > 1)
@@ -67,43 +68,78 @@ pub fn find_duplicate_groups(
     let mut hashed_count: usize = 0;
 
     for files in &size_buckets {
-        let do_hash_here = use_hash && files.len() > 1;
+        let do_hash_here = config.use_hash && files.len() > 1;
 
         for entry in files {
             let mut components: Vec<CriterionValue> = Vec::new();
 
             if do_hash_here {
-                if let Some(max_bytes) = hash_max_bytes {
+                if let Some(max_bytes) = config.hash_max_bytes {
                     if entry.size > max_bytes {
-                        hash_skipped += 1;
+                        if config.fast_hash_oversized {
+                            // Use head+tail sampling instead of skipping.
+                            match hasher::sha256_fast(&entry.path) {
+                                Ok(digest) => {
+                                    components.push(CriterionValue::FastHash(digest))
+                                }
+                                Err(_) => {
+                                    hash_skipped += 1;
+                                    hashed_count += 1;
+                                    if let Some(cb) = &progress_cb {
+                                        cb(hashed_count, total_to_hash);
+                                    }
+                                    continue;
+                                }
+                            }
+                        } else {
+                            hash_skipped += 1;
+                        }
                         hashed_count += 1;
                         if let Some(cb) = &progress_cb {
                             cb(hashed_count, total_to_hash);
                         }
-                        continue;
-                    }
-                }
-                match hasher::sha256_file(&entry.path) {
-                    Ok(digest) => components.push(CriterionValue::Hash(digest)),
-                    Err(_) => {
+                        if !config.fast_hash_oversized {
+                            continue;
+                        }
+                    } else {
+                        match hasher::sha256_file(&entry.path) {
+                            Ok(digest) => components.push(CriterionValue::Hash(digest)),
+                            Err(_) => {
+                                hashed_count += 1;
+                                if let Some(cb) = &progress_cb {
+                                    cb(hashed_count, total_to_hash);
+                                }
+                                continue;
+                            }
+                        }
                         hashed_count += 1;
                         if let Some(cb) = &progress_cb {
                             cb(hashed_count, total_to_hash);
                         }
-                        continue;
                     }
-                }
-                hashed_count += 1;
-                if let Some(cb) = &progress_cb {
-                    cb(hashed_count, total_to_hash);
+                } else {
+                    match hasher::sha256_file(&entry.path) {
+                        Ok(digest) => components.push(CriterionValue::Hash(digest)),
+                        Err(_) => {
+                            hashed_count += 1;
+                            if let Some(cb) = &progress_cb {
+                                cb(hashed_count, total_to_hash);
+                            }
+                            continue;
+                        }
+                    }
+                    hashed_count += 1;
+                    if let Some(cb) = &progress_cb {
+                        cb(hashed_count, total_to_hash);
+                    }
                 }
             }
 
-            if use_size {
+            if config.use_size {
                 components.push(CriterionValue::Size(entry.size));
             }
 
-            if use_name {
+            if config.use_name {
                 let name = entry
                     .path
                     .file_name()
@@ -112,13 +148,19 @@ pub fn find_duplicate_groups(
                 components.push(CriterionValue::Name(normalize_name(name)));
             }
 
-            if use_mtime {
+            if config.use_mtime {
                 components.push(CriterionValue::Mtime(entry.mtime as i64));
             }
 
-            if use_mime {
+            if config.use_mime {
                 let mime = detect_mime_type(&entry.path);
                 components.push(CriterionValue::MimeType(mime));
+            }
+
+            if config.use_media_meta {
+                if let Some(fp) = media_meta::extract_media_fingerprint(&entry.path) {
+                    components.push(CriterionValue::MediaMeta(fp));
+                }
             }
 
             if components.is_empty() {
@@ -179,6 +221,27 @@ mod tests {
             .collect()
     }
 
+    /// Helper: build a config with only the specified criteria enabled.
+    fn config(
+        hash: bool,
+        size: bool,
+        name: bool,
+        mtime: bool,
+        mime: bool,
+        max_bytes: Option<u64>,
+    ) -> GroupingConfig {
+        GroupingConfig {
+            use_hash: hash,
+            use_size: size,
+            use_name: name,
+            use_mtime: mtime,
+            use_mime: mime,
+            use_media_meta: false,
+            hash_max_bytes: max_bytes,
+            fast_hash_oversized: false,
+        }
+    }
+
     #[test]
     fn test_hash_duplicates() {
         let dir = tempdir().unwrap();
@@ -190,8 +253,8 @@ mod tests {
                 ("c.txt", b"different"),
             ],
         );
-        let (groups, _) =
-            find_duplicate_groups(&entries, true, false, false, false, false, None, None);
+        let cfg = config(true, false, false, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, &cfg, None);
         assert_eq!(groups.len(), 1);
         let group = groups.values().next().unwrap();
         let names: std::collections::HashSet<String> = group
@@ -213,8 +276,8 @@ mod tests {
                 ("c.txt", b"cc"),   // different size
             ],
         );
-        let (groups, _) =
-            find_duplicate_groups(&entries, false, true, false, false, false, None, None);
+        let cfg = config(false, true, false, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, &cfg, None);
         assert_eq!(groups.len(), 1);
         let group = groups.values().next().unwrap();
         let names: std::collections::HashSet<String> = group
@@ -251,8 +314,8 @@ mod tests {
                 mtime: now,
             },
         ];
-        let (groups, _) =
-            find_duplicate_groups(&entries, false, false, true, false, false, None, None);
+        let cfg = config(false, false, true, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, &cfg, None);
         assert_eq!(groups.len(), 1);
     }
 
@@ -260,8 +323,8 @@ mod tests {
     fn test_no_criteria_returns_empty() {
         let dir = tempdir().unwrap();
         let entries = make_entries(dir.path(), &[("a.txt", b"x")]);
-        let (groups, _) =
-            find_duplicate_groups(&entries, false, false, false, false, false, None, None);
+        let cfg = config(false, false, false, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, &cfg, None);
         assert!(groups.is_empty());
     }
 
@@ -275,8 +338,8 @@ mod tests {
                 ("big2.bin", &vec![b'y'; 1000]),
             ],
         );
-        let (_, skipped) =
-            find_duplicate_groups(&entries, true, false, false, false, false, Some(500), None);
+        let cfg = config(true, false, false, false, false, Some(500));
+        let (_, skipped) = find_duplicate_groups(&entries, &cfg, None);
         assert_eq!(skipped, 2);
     }
 
@@ -284,8 +347,8 @@ mod tests {
     fn test_single_file_produces_no_groups() {
         let dir = tempdir().unwrap();
         let entries = make_entries(dir.path(), &[("only.txt", b"alone")]);
-        let (groups, _) =
-            find_duplicate_groups(&entries, true, true, false, false, false, None, None);
+        let cfg = config(true, true, false, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, &cfg, None);
         assert!(groups.is_empty());
     }
 
@@ -300,8 +363,60 @@ mod tests {
                 ("c.txt", b"charlie"),
             ],
         );
-        let (groups, _) =
-            find_duplicate_groups(&entries, true, false, false, false, false, None, None);
+        let cfg = config(true, false, false, false, false, None);
+        let (groups, _) = find_duplicate_groups(&entries, &cfg, None);
         assert!(groups.is_empty());
+    }
+
+    #[test]
+    fn test_fast_hash_oversized_groups_large_files() {
+        let dir = tempdir().unwrap();
+        // Create two identical "large" files that exceed our small cap.
+        let content = vec![0xAB; 2000];
+        let entries = make_entries(
+            dir.path(),
+            &[("big1.bin", &content), ("big2.bin", &content)],
+        );
+        let cfg = GroupingConfig {
+            use_hash: true,
+            use_size: false,
+            use_name: false,
+            use_mtime: false,
+            use_mime: false,
+            use_media_meta: false,
+            hash_max_bytes: Some(500), // cap below file size
+            fast_hash_oversized: true,
+        };
+        let (groups, skipped) = find_duplicate_groups(&entries, &cfg, None);
+        // Files should be grouped via fast-hash, NOT skipped.
+        assert_eq!(groups.len(), 1);
+        assert_eq!(skipped, 0);
+        // Verify the key uses FastHash variant.
+        let key = groups.keys().next().unwrap();
+        assert!(matches!(&key[0], CriterionValue::FastHash(_)));
+    }
+
+    #[test]
+    fn test_full_hash_still_skips_without_fast_flag() {
+        let dir = tempdir().unwrap();
+        let content = vec![0xAB; 2000];
+        let entries = make_entries(
+            dir.path(),
+            &[("big1.bin", &content), ("big2.bin", &content)],
+        );
+        let cfg = GroupingConfig {
+            use_hash: true,
+            use_size: false,
+            use_name: false,
+            use_mtime: false,
+            use_mime: false,
+            use_media_meta: false,
+            hash_max_bytes: Some(500),
+            fast_hash_oversized: false, // disabled
+        };
+        let (groups, skipped) = find_duplicate_groups(&entries, &cfg, None);
+        // Files should be skipped, not grouped.
+        assert!(groups.is_empty());
+        assert_eq!(skipped, 2);
     }
 }

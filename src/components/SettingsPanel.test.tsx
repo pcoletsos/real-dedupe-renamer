@@ -11,8 +11,10 @@ const defaults = {
   useName: false,
   useMtime: false,
   useMime: false,
+  useMediaMeta: false,
   hashLimitEnabled: true,
   hashMaxMb: 500,
+  fastHashOversized: false,
   includeSubfolders: true,
   namePrefix: "",
   skipSameFolderPrompt: false,
@@ -27,12 +29,14 @@ describe("SettingsPanel", () => {
     const name = screen.getByLabelText("File name") as HTMLInputElement;
     const mtime = screen.getByLabelText("Modified time") as HTMLInputElement;
     const mime = screen.getByLabelText("MIME type") as HTMLInputElement;
+    const mediaMeta = screen.getByLabelText("Media dimensions") as HTMLInputElement;
 
     expect(hash.checked).toBe(true);
     expect(size.checked).toBe(true);
     expect(name.checked).toBe(false);
     expect(mtime.checked).toBe(false);
     expect(mime.checked).toBe(false);
+    expect(mediaMeta.checked).toBe(false);
   });
 
   it("calls onChange when checkbox toggled", async () => {
@@ -74,5 +78,6 @@ describe("SettingsPanel", () => {
     expect(onChange).toHaveBeenCalledWith("use_name", true);
     expect(onChange).toHaveBeenCalledWith("use_mtime", true);
     expect(onChange).toHaveBeenCalledWith("use_mime", true);
+    expect(onChange).toHaveBeenCalledWith("use_media_meta", true);
   });
 });

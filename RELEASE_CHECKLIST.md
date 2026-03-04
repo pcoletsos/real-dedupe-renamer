@@ -1,6 +1,6 @@
 # Release Checklist
 
-This repository is Tauri-forward. Legacy Python is release-compatible only and must still be built/published for each `v2.*` release.
+This repository is Tauri-forward. Legacy Python is release-compatible only (feature-frozen) and must still be built/published for each `v2.*` release. See [docs/LEGACY_PYTHON_POLICY.md](docs/LEGACY_PYTHON_POLICY.md) for scope and deprecation criteria.
 
 ## 1. Pre-release (required)
 
@@ -14,6 +14,7 @@ This repository is Tauri-forward. Legacy Python is release-compatible only and m
   - frontend checks + unit tests
   - Rust tests
   - Rust `fmt` + `clippy`
+  - Note: the release workflow enforces these same checks inline via a `quality-gate` job that runs before any platform build starts.
 
 ## 2. Tag and release policy
 

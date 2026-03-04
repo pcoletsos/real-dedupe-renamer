@@ -1,11 +1,12 @@
-mod autorenamer;
+pub mod autorenamer;
 mod commands;
-mod deleter;
-mod grouper;
-mod hasher;
-mod scanner;
+pub mod deleter;
+pub mod grouper;
+pub mod hasher;
+pub mod media_meta;
+pub mod scanner;
 mod settings;
-mod types;
+pub mod types;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

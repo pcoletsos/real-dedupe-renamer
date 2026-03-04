@@ -9,11 +9,27 @@ All notable changes to this project are documented in this file.
 - Criteria preset profiles (Safe / Default / Aggressive) for simpler onboarding.
 - CSV export for auto-rename dry-run plans.
 - Schema reset-to-default button in the rename component builder.
+- Media dimensions criterion: optional duplicate check using image width/height extracted from EXIF (JPEG/TIFF) and IHDR (PNG). Wired end-to-end from grouper through settings UI with preset integration.
+- Fast-hash mode for oversized files: head+tail 64 KB sampling strategy avoids skipping large files entirely when hash size cap is active (opt-in via "Fast-hash oversized files" toggle).
+- Keyboard support in rename schema builder: arrow-key navigation between chips, Delete/Backspace removal, Ctrl+D / Cmd+D duplication, visual focus ring, and ARIA listbox/option roles for accessibility.
 
 ### Testing & CI
 - Component test infrastructure: jsdom environment, @testing-library/react, HTMLDialogElement polyfill.
 - Component tests for ConfirmDialog, SettingsPanel, and RenameComponentBuilder (14 new tests, 20 total).
+- End-to-end smoke suite: 10 integration tests exercising the full scan → group → delete/rename pipelines using real temporary directories (no Tauri runtime required). Covers hash grouping, multi-criteria, fast-hash oversized, prefix/subfolder filtering, rename collision resolution, and post-delete re-scan verification.
 - CI test artifact uploads: JUnit XML for frontend, text capture for Rust per-OS results.
+- Release workflow quality gate: `tsc --noEmit`, `vitest run`, `cargo fmt --check`, `cargo clippy`, and `cargo test` must all pass before any platform build job starts, ensuring no broken release ships regardless of CI timing.
+
+### Legacy Python Policy
+- Formal feature freeze: legacy Python accepts only critical bug, security, and compatibility fixes. No new features, dependencies, or refactoring.
+- Historical annotations added to legacy-era documentation (FEATURES.md, CODEBASE_ANALYSIS.md, DECISIONS.md, PROJECT_LOG.md, CHANGELOG.md).
+- Deprecation criteria defined: download share, issue volume, support cost, and build breakage thresholds with Q4 2026 reassessment checkpoint.
+- Full policy documented in `docs/LEGACY_PYTHON_POLICY.md`.
+
+---
+
+> **Versions below are legacy Python/Tkinter releases (feature-frozen).**
+> See [docs/LEGACY_PYTHON_POLICY.md](docs/LEGACY_PYTHON_POLICY.md) for scope policy.
 
 ## 1.7.15
 - Fix crash when files disappear between scan and delete (safer size calculation).

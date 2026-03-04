@@ -1,6 +1,6 @@
 # Roadmap
 
-> Updated: 2026-03-02
+> Updated: 2026-03-05
 > Direction: Tauri/Rust/React is the forward product stack.
 > Legacy policy: Python/Tkinter is release-compatible only (no net-new feature work).
 
@@ -41,7 +41,7 @@
 
 ### A3. Backfill and maintain v2 releases
 - [Done] Backfilled `v2.0.0` and `v2.0.4` releases on GitHub with Tauri + legacy Python assets.
-- [Planned] Ensure each future `v2.*` tag automatically publishes complete assets via `.github/workflows/release.yml`.
+- [Done] Ensure each future `v2.*` tag automatically publishes complete assets via `.github/workflows/release.yml`.
 
 ---
 
@@ -53,15 +53,15 @@
 - [Done] Add user-visible warning when selected duplicate criteria materially reduce confidence (metadata-only matches).
 
 ### B2. Duplicate criteria roadmap
-- [Planned] Expand optional checks beyond current MIME/type support (e.g., media metadata where feasible).
-- [Planned] Evaluate a fast-hash mode (chunk/hash strategy) for large-file workflows with explicit caveats.
+- [Done] Expand optional checks beyond current MIME/type support (e.g., media metadata where feasible).
+- [Done] Evaluate a fast-hash mode (chunk/hash strategy) for large-file workflows with explicit caveats.
 - [Done] Add criteria preset profiles (safe/default/aggressive) for simpler onboarding.
 
 ### B3. Auto-renamer roadmap
 - [Done] Add deterministic collision preview parity tests between frontend preview and backend rename result.
 - [Done] Add preview export (CSV/report) for dry-run rename plans.
 - [Done] Add schema reset-to-default action.
-- [Planned] Improve schema editing UX (duplicate component shortcuts, keyboard support).
+- [Done] Improve schema editing UX (duplicate component shortcuts, keyboard support).
 
 ---
 
@@ -70,7 +70,7 @@
 ### C1. Test coverage expansion
 - [Done] Add frontend unit tests for pure logic utilities (rename preview, selection/filter behavior).
 - [Done] Add component tests for high-risk flows (delete confirm, settings panel, auto-renamer schema builder).
-- [Planned] Add an end-to-end smoke suite (Tauri app launch + scan/delete/rename happy paths).
+- [Done] Add an end-to-end smoke suite (Tauri app launch + scan/delete/rename happy paths).
 
 ### C2. CI quality gates
 - [Done] Add lint step for Rust (`cargo fmt --check`, `cargo clippy`) to CI.
@@ -82,13 +82,13 @@
 ## Track D - Legacy Python Policy
 
 ### D1. Scope control
-- [In Progress] Legacy Python remains buildable and published to GitHub Releases.
-- [Planned] Freeze legacy Python feature scope: only critical bug/security/compatibility fixes.
-- [Planned] Mark legacy Python docs as historical where needed and keep primary docs Tauri-first.
+- [Done] Legacy Python remains buildable and published to GitHub Releases.
+- [Done] Freeze legacy Python feature scope: only critical bug/security/compatibility fixes.
+- [Done] Mark legacy Python docs as historical where needed and keep primary docs Tauri-first.
 
 ### D2. Sunset criteria
-- [Planned] Define objective deprecation criteria (download share, issue volume, support cost).
-- [Planned] Reassess legacy Python retention in Q4 2026 based on those metrics.
+- [Done] Define objective deprecation criteria (download share, issue volume, support cost).
+- [Done] Reassess legacy Python retention in Q4 2026 based on those metrics.
 
 ---
 

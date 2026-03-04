@@ -1,7 +1,9 @@
-# Features
+# Features (Legacy Python)
 
-> Note: This file currently reflects the legacy Python feature set.
-> The active development stack is Tauri/Rust/React.
+> **Historical document — feature-frozen as of March 2026.**
+> This file reflects the legacy Python/Tkinter feature set (v1.x).
+> The active development stack is **Tauri/Rust/React** (v2.x+).
+> No new features will be added to the Python codebase. See [LEGACY_PYTHON_POLICY.md](LEGACY_PYTHON_POLICY.md) for details.
 
 ## Scanning and Matching
 

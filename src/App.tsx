@@ -32,8 +32,10 @@ const SIMPLIFIED_DEFAULTS: Partial<AppSettings> = {
   use_name: false,
   use_mtime: false,
   use_mime: false,
+  use_media_meta: false,
   hash_limit_enabled: true,
   hash_max_mb: 500,
+  fast_hash_oversized: false,
   include_subfolders: true,
   name_prefix: "",
   skip_same_folder_prompt: true,
@@ -47,8 +49,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   use_name: false,
   use_mtime: false,
   use_mime: false,
+  use_media_meta: false,
   hash_limit_enabled: true,
   hash_max_mb: 500,
+  fast_hash_oversized: false,
   skip_same_folder_prompt: false,
   show_keep_full_paths: false,
   include_subfolders: true,
@@ -256,8 +260,10 @@ export default function App() {
         use_name: settings.use_name,
         use_mtime: settings.use_mtime,
         use_mime: settings.use_mime,
+        use_media_meta: settings.use_media_meta,
         hash_limit_enabled: settings.hash_limit_enabled,
         hash_max_mb: settings.hash_max_mb,
+        fast_hash_oversized: settings.fast_hash_oversized,
         skip_same_folder_prompt: settings.skip_same_folder_prompt,
         include_subfolders: settings.include_subfolders,
         name_prefix: settings.name_prefix,
@@ -318,7 +324,8 @@ export default function App() {
       !scanSettings.use_size &&
       !scanSettings.use_name &&
       !scanSettings.use_mtime &&
-      !scanSettings.use_mime
+      !scanSettings.use_mime &&
+      !scanSettings.use_media_meta
     ) {
       setConfirmState({
         title: "No criteria",
@@ -343,8 +350,10 @@ export default function App() {
         use_name: scanSettings.use_name,
         use_mtime: scanSettings.use_mtime,
         use_mime: scanSettings.use_mime,
+        use_media_meta: scanSettings.use_media_meta,
         hash_limit_enabled: scanSettings.hash_limit_enabled,
         hash_max_mb: scanSettings.hash_max_mb,
+        fast_hash_oversized: scanSettings.fast_hash_oversized,
         include_subfolders: scanSettings.include_subfolders,
         name_prefix: scanSettings.name_prefix,
       });
@@ -356,7 +365,7 @@ export default function App() {
       setLastScanPrefix(scanSettings.name_prefix);
       setLastScanSubfolders(scanSettings.include_subfolders);
       setLastScanHadFallback(
-        scanSettings.use_size || scanSettings.use_name || scanSettings.use_mtime || scanSettings.use_mime,
+        scanSettings.use_size || scanSettings.use_name || scanSettings.use_mtime || scanSettings.use_mime || scanSettings.use_media_meta,
       );
 
       // Simplified mode: auto-prompt delete if duplicates found.
@@ -855,8 +864,10 @@ export default function App() {
             useName={settings.use_name}
             useMtime={settings.use_mtime}
             useMime={settings.use_mime}
+            useMediaMeta={settings.use_media_meta}
             hashLimitEnabled={settings.hash_limit_enabled}
             hashMaxMb={settings.hash_max_mb}
+            fastHashOversized={settings.fast_hash_oversized}
             includeSubfolders={settings.include_subfolders}
             namePrefix={settings.name_prefix}
             skipSameFolderPrompt={settings.skip_same_folder_prompt}
