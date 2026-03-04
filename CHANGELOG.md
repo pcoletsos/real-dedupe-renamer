@@ -2,6 +2,9 @@
 
 All notable changes to this project are documented in this file.
 
+## 2.1.1
+- Version bump: includes all Track C (testing/CI) and Track D (legacy Python policy) work that landed after the v2.1.0 binaries were built. No runtime behavior changes versus v2.1.0 — this release picks up E2E smoke tests, CI quality gates, legacy policy docs, and historical annotations.
+
 ## 2.1.0
 ### Features
 - Scan progress UX: structured phase labels ("Phase 1: Discovering files" / "Phase 2: Computing hashes"), estimated time remaining during hashing, total files scanned in completion summary.
