@@ -79,9 +79,7 @@ pub fn find_duplicate_groups(
                         if config.fast_hash_oversized {
                             // Use head+tail sampling instead of skipping.
                             match hasher::sha256_fast(&entry.path) {
-                                Ok(digest) => {
-                                    components.push(CriterionValue::FastHash(digest))
-                                }
+                                Ok(digest) => components.push(CriterionValue::FastHash(digest)),
                                 Err(_) => {
                                     hash_skipped += 1;
                                     hashed_count += 1;

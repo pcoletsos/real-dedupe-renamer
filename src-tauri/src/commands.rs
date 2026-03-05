@@ -191,11 +191,8 @@ fn scan_blocking(
     };
 
     // Find duplicate groups.
-    let (raw_groups, hash_skipped) = grouper::find_duplicate_groups(
-        &entries,
-        &grouping_config,
-        Some(&hash_progress),
-    );
+    let (raw_groups, hash_skipped) =
+        grouper::find_duplicate_groups(&entries, &grouping_config, Some(&hash_progress));
 
     // Convert to DTOs for the frontend.
     let groups: Vec<DuplicateGroup> = raw_groups

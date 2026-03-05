@@ -69,14 +69,12 @@ fn scan_group_delete_happy_path() {
     write_file(dir.path(), "c.txt", b"unique content");
 
     // Scan
-    let (entries, skip_reasons) =
-        scanner::gather_recent_files(dir.path(), 0, None, true, None);
+    let (entries, skip_reasons) = scanner::gather_recent_files(dir.path(), 0, None, true, None);
     assert_eq!(entries.len(), 3);
     assert_eq!(skip_reasons.total(), 0);
 
     // Group by hash
-    let (groups, hash_skipped) =
-        grouper::find_duplicate_groups(&entries, &hash_config(), None);
+    let (groups, hash_skipped) = grouper::find_duplicate_groups(&entries, &hash_config(), None);
     assert_eq!(hash_skipped, 0);
     assert_eq!(groups.len(), 1, "expected exactly one duplicate group");
 
@@ -108,10 +106,8 @@ fn delete_preserves_kept_files_in_large_group() {
         write_file(dir.path(), &format!("dup_{}.txt", i), b"same content");
     }
 
-    let (entries, _) =
-        scanner::gather_recent_files(dir.path(), 0, None, true, None);
-    let (groups, _) =
-        grouper::find_duplicate_groups(&entries, &hash_config(), None);
+    let (entries, _) = scanner::gather_recent_files(dir.path(), 0, None, true, None);
+    let (groups, _) = grouper::find_duplicate_groups(&entries, &hash_config(), None);
     assert_eq!(groups.len(), 1);
 
     let group = groups.values().next().unwrap();
@@ -131,11 +127,9 @@ fn delete_preserves_kept_files_in_large_group() {
     }
 
     // Re-scan: single remaining file cannot form a duplicate group.
-    let (entries2, _) =
-        scanner::gather_recent_files(dir.path(), 0, None, true, None);
+    let (entries2, _) = scanner::gather_recent_files(dir.path(), 0, None, true, None);
     assert_eq!(entries2.len(), 1);
-    let (groups2, _) =
-        grouper::find_duplicate_groups(&entries2, &hash_config(), None);
+    let (groups2, _) = grouper::find_duplicate_groups(&entries2, &hash_config(), None);
     assert!(groups2.is_empty(), "single file cannot be a duplicate");
 }
 
@@ -211,8 +205,14 @@ fn rename_with_sequence_resolves_collisions() {
         assert!(name.ends_with(".txt"), "extension lost: {}", name);
     }
     assert!(names.contains("file.txt"), "base name should exist");
-    assert!(names.contains("file_001.txt"), "first collision should exist");
-    assert!(names.contains("file_002.txt"), "second collision should exist");
+    assert!(
+        names.contains("file_001.txt"),
+        "first collision should exist"
+    );
+    assert!(
+        names.contains("file_002.txt"),
+        "second collision should exist"
+    );
 }
 
 #[test]
@@ -224,12 +224,10 @@ fn full_pipeline_scan_group_rename_duplicate() {
     write_file(dir.path(), "doc.txt", b"text data"); // unique
 
     // Scan + group
-    let (entries, _) =
-        scanner::gather_recent_files(dir.path(), 0, None, true, None);
+    let (entries, _) = scanner::gather_recent_files(dir.path(), 0, None, true, None);
     assert_eq!(entries.len(), 3);
 
-    let (groups, _) =
-        grouper::find_duplicate_groups(&entries, &hash_config(), None);
+    let (groups, _) = grouper::find_duplicate_groups(&entries, &hash_config(), None);
     assert_eq!(groups.len(), 1);
 
     // Rename the copy, not the original.
@@ -257,7 +255,7 @@ fn full_pipeline_scan_group_rename_duplicate() {
         separator: "_".to_string(),
     };
 
-    let result = autorenamer::auto_rename_paths(&[dup_path.clone()], &schema);
+    let result = autorenamer::auto_rename_paths(std::slice::from_ref(&dup_path), &schema);
     assert_eq!(result.renamed_count, 1);
     assert_eq!(result.error_count, 0);
 
@@ -286,8 +284,7 @@ fn multi_criteria_hash_plus_size() {
     // d.txt: completely different.
     write_file(dir.path(), "d.txt", b"short");
 
-    let (entries, _) =
-        scanner::gather_recent_files(dir.path(), 0, None, true, None);
+    let (entries, _) = scanner::gather_recent_files(dir.path(), 0, None, true, None);
     assert_eq!(entries.len(), 4);
 
     let config = GroupingConfig {
@@ -318,13 +315,14 @@ fn no_duplicates_returns_no_groups() {
     write_file(dir.path(), "unique2.txt", b"second");
     write_file(dir.path(), "unique3.txt", b"third");
 
-    let (entries, _) =
-        scanner::gather_recent_files(dir.path(), 0, None, true, None);
+    let (entries, _) = scanner::gather_recent_files(dir.path(), 0, None, true, None);
     assert_eq!(entries.len(), 3);
 
-    let (groups, _) =
-        grouper::find_duplicate_groups(&entries, &hash_config(), None);
-    assert!(groups.is_empty(), "all unique files should produce no groups");
+    let (groups, _) = grouper::find_duplicate_groups(&entries, &hash_config(), None);
+    assert!(
+        groups.is_empty(),
+        "all unique files should produce no groups"
+    );
 }
 
 #[test]
@@ -336,8 +334,7 @@ fn fast_hash_groups_oversized_files() {
     write_file(dir.path(), "big2.bin", &big_content); // duplicate
     write_file(dir.path(), "small.txt", b"tiny");
 
-    let (entries, _) =
-        scanner::gather_recent_files(dir.path(), 0, None, true, None);
+    let (entries, _) = scanner::gather_recent_files(dir.path(), 0, None, true, None);
 
     // hash_max_bytes = 1024 so the 2 KB files are "oversized".
     // fast_hash_oversized = true → sample head+tail instead of skipping.
@@ -348,13 +345,16 @@ fn fast_hash_groups_oversized_files() {
         ..hash_config()
     };
 
-    let (groups, hash_skipped) =
-        grouper::find_duplicate_groups(&entries, &config, None);
+    let (groups, hash_skipped) = grouper::find_duplicate_groups(&entries, &config, None);
     assert_eq!(
         hash_skipped, 0,
         "fast hash should handle oversized files, not skip them"
     );
-    assert_eq!(groups.len(), 1, "the two big files should group via fast hash");
+    assert_eq!(
+        groups.len(),
+        1,
+        "the two big files should group via fast hash"
+    );
     assert_eq!(groups.values().next().unwrap().len(), 2);
 }
 
@@ -370,8 +370,7 @@ fn scan_respects_prefix_filter() {
     write_file(dir.path(), "IMG_002.jpg", b"photo 2");
     write_file(dir.path(), "DOC_report.pdf", b"document");
 
-    let (entries, _) =
-        scanner::gather_recent_files(dir.path(), 0, Some("IMG"), true, None);
+    let (entries, _) = scanner::gather_recent_files(dir.path(), 0, Some("IMG"), true, None);
     assert_eq!(entries.len(), 2, "only IMG_ files should be returned");
 }
 
@@ -385,12 +384,10 @@ fn scan_respects_subfolder_toggle() {
     write_file(&sub, "nested.txt", b"nested file");
 
     // Without subfolders.
-    let (entries_flat, _) =
-        scanner::gather_recent_files(dir.path(), 0, None, false, None);
+    let (entries_flat, _) = scanner::gather_recent_files(dir.path(), 0, None, false, None);
     assert_eq!(entries_flat.len(), 1, "should only find root file");
 
     // With subfolders.
-    let (entries_deep, _) =
-        scanner::gather_recent_files(dir.path(), 0, None, true, None);
+    let (entries_deep, _) = scanner::gather_recent_files(dir.path(), 0, None, true, None);
     assert_eq!(entries_deep.len(), 2, "should find root + nested files");
 }
