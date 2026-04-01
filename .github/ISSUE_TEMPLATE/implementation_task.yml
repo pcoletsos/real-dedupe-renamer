@@ -1,0 +1,58 @@
+name: Implementation task
+description: Track repo work that changes code, workflows, docs, or release behavior.
+labels: [task, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for scoped implementation work. Keep the legacy Python path visible when the change touches compatibility or release flow.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Primary scope
+      options:
+        - tauri
+        - rust
+        - python-legacy
+        - release
+        - docs
+        - shared
+    validations:
+      required: true
+  - type: input
+    id: issue
+    attributes:
+      label: Related GitHub issue
+      description: Link the tracking issue, for example `#2`.
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What should change?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: List the commands or checks you expect to run.
+    validations:
+      required: true
+  - type: textarea
+    id: legacy
+    attributes:
+      label: Legacy Python compatibility
+      description: Note whether the frozen Python surface is in scope.
+  - type: textarea
+    id: release
+    attributes:
+      label: Release compatibility
+      description: Note any version, packaging, or release workflow impact.

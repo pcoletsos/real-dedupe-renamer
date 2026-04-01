@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a defect in Tauri, Rust, or the legacy Python compatibility surface.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for a confirmed defect. Keep legacy Python compatibility visible if the Python surface is involved.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Primary scope
+      options:
+        - tauri
+        - rust
+        - python-legacy
+        - release
+        - docs
+        - shared
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is broken?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: legacy
+    attributes:
+      label: Legacy Python compatibility
+      description: Note whether the Python surface is involved and whether compatibility is preserved.
+  - type: textarea
+    id: release
+    attributes:
+      label: Release compatibility
+      description: Note any packaging, versioning, or release impact.

@@ -11,7 +11,7 @@ Desktop utility for duplicate-file cleanup and guided auto-renaming.
 ## Download
 
 Download published binaries from GitHub Releases:
-- https://github.com/TsoliasPN/real-dedupe-renamer/releases
+- https://github.com/pcoletsos/real-dedupe-renamer/releases
 
 ## Develop (Tauri)
 
@@ -56,10 +56,15 @@ Releases are automated via GitHub Actions:
   - legacy Python Windows EXE
   - Tauri bundles for Windows/macOS/Linux
 
-Trigger release publishing by pushing a tag (for example `v2.0.5`).
+Trigger release publishing by pushing a tag (for example `v2.1.1`).
 You can also run the release workflow manually with an existing tag to backfill assets.
 
 ## Binary Artifact Policy
 
 - Do not commit build outputs (`dist/`, `archive/`, `build/`, `.exe`, `.zip`, bundle artifacts).
 - Publish all build artifacts through GitHub Releases.
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before non-trivial changes. GitHub
+is the live source of truth for issues, milestones, CI, and releases.

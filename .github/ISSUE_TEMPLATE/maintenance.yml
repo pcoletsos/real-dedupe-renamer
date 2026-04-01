@@ -1,0 +1,44 @@
+name: Maintenance
+description: Track repo maintenance, cleanup, or dependency work.
+labels: [maintenance, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for routine maintenance work. Keep compatibility and release impact visible when relevant.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Primary scope
+      options:
+        - tauri
+        - rust
+        - python-legacy
+        - release
+        - docs
+        - shared
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Maintenance work
+      description: What is being cleaned up, updated, or verified?
+    validations:
+      required: true
+  - type: textarea
+    id: legacy
+    attributes:
+      label: Legacy Python compatibility
+      description: Mention any compatibility verification or why the legacy surface is untouched.
+  - type: textarea
+    id: release
+    attributes:
+      label: Release compatibility
+      description: Mention whether version sync or packaging validation is needed.

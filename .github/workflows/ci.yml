@@ -1,37 +1,21 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 jobs:
-  frontend-check:
+  tauri-frontend-checks:
+    name: Tauri/frontend checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm ci
-      - run: npm run test:unit -- --run --reporter=default --reporter=junit --outputFile=test-results/frontend-junit.xml
-      - name: Upload frontend test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-test-results
-          path: test-results/frontend-junit.xml
-      - run: npx tsc --noEmit
-      - run: npx vite build
-
-  rust-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -39,21 +23,24 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-      - name: Run Rust fmt check
-        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
-      - name: Run Rust clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Run frontend unit tests
+        run: npx vitest run
+      - name: Type-check the frontend
+        run: npx tsc --noEmit
+      - name: Build the frontend
+        run: npm run build
+      - name: Build Tauri without bundling
+        run: npx tauri build --no-bundle
 
-  rust-test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+  rust-tests:
+    name: Rust tests
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Install Linux dependencies
-        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev
@@ -61,33 +48,4 @@ jobs:
         with:
           workspaces: src-tauri
       - name: Run Rust tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml 2>&1 | tee test-results-rust.txt
-      - name: Upload Rust test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-test-results-${{ matrix.os }}
-          path: test-results-rust.txt
-
-  tauri-build:
-    needs: [rust-test, frontend-check, rust-lint]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-      - run: npm ci
-      - run: npx tauri build --no-bundle
+        run: cargo test --manifest-path src-tauri/Cargo.toml

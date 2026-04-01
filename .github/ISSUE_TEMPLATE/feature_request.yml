@@ -1,0 +1,46 @@
+name: Feature request
+description: Propose a new capability or product behavior.
+labels: [feature, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for new behavior. Route release or compatibility-only work to the appropriate template.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Primary scope
+      options:
+        - tauri
+        - rust
+        - python-legacy
+        - release
+        - docs
+        - shared
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What should be added or improved?
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Why this matters
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: Clear bullets are best.
+    validations:
+      required: true
+  - type: textarea
+    id: legacy
+    attributes:
+      label: Legacy Python compatibility
+      description: Explain whether the frozen Python surface is unchanged or intentionally updated.

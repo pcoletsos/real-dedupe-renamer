@@ -1,0 +1,44 @@
+name: Maintainer override
+description: Request an admin, emergency, or repo-ops exception.
+labels: [maintainer-override, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this only for maintainer-level exceptions, emergency fixes, or repo administration.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Primary scope
+      options:
+        - tauri
+        - rust
+        - python-legacy
+        - release
+        - docs
+        - shared
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: justification
+    attributes:
+      label: Why an override is needed
+      description: Explain why the normal issue → branch → PR flow is insufficient.
+    validations:
+      required: true
+  - type: textarea
+    id: legacy
+    attributes:
+      label: Legacy Python compatibility
+      description: Mention any compatibility implications.
+  - type: textarea
+    id: release
+    attributes:
+      label: Release compatibility
+      description: Mention any release or packaging implications.

@@ -1,0 +1,32 @@
+name: Contribution guardrails
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  guardrails:
+    name: Contribution guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate PR contract
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          body_file="$(mktemp)"
+          changed_files="$(mktemp)"
+          printf '%s' "$PR_BODY" > "$body_file"
+          git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" > "$changed_files"
+
+          python scripts/check_contribution_guardrails.py \
+            --branch "$PR_BRANCH" \
+            --title "$PR_TITLE" \
+            --body-file "$body_file" \
+            --changed-files-file "$changed_files"

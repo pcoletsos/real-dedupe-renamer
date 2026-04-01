@@ -1,0 +1,50 @@
+name: Ops incident
+description: Report a production, release, or workflow incident.
+labels: [ops, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for release, CI, or operational incidents. Keep the affected scope explicit.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Primary scope
+      options:
+        - tauri
+        - rust
+        - python-legacy
+        - release
+        - docs
+        - shared
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who or what is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Mitigation already attempted
+    validations:
+      required: true
+  - type: textarea
+    id: legacy
+    attributes:
+      label: Legacy Python compatibility
+      description: Note whether the frozen Python surface is implicated.
+  - type: textarea
+    id: release
+    attributes:
+      label: Release compatibility
+      description: Note whether a release backfill or version sync is involved.
