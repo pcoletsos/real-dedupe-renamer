@@ -37,3 +37,5 @@ Quick prompt shorthand is defined in `CONTRIBUTING.md`:
 - `ship it`
 - `finish it`
 - `finish it for #<id>`
+
+Shared agent execution protocol: see the `Agent execution protocol` section in `AGENTS.md`.
