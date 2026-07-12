@@ -24,7 +24,7 @@ permissions:
 jobs:
   validate-release-meta:
     name: Validate Release Metadata
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_JSON || '["ubuntu-latest"]') }}
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
@@ -87,7 +87,7 @@ jobs:
 
   quality-gate:
     name: Quality Gate (tests + lint)
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_JSON || '["ubuntu-latest"]') }}
     needs: [validate-release-meta]
     steps:
       - uses: actions/checkout@v4
@@ -131,7 +131,7 @@ jobs:
 
   build-python-legacy:
     name: Build Legacy Python EXE (Windows)
-    runs-on: windows-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_WIN_JSON || '["windows-latest"]') }}
     needs: [validate-release-meta, quality-gate]
     steps:
       - uses: actions/checkout@v4
@@ -160,12 +160,18 @@ jobs:
 
   build-tauri:
     name: Build Tauri (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     needs: [validate-release-meta, quality-gate]
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            runner: ${{ fromJSON(vars.CI_RUNNER_JSON || '["ubuntu-latest"]') }}
+          - os: macos-latest
+            runner: ${{ fromJSON(vars.CI_RUNNER_MAC_JSON || '["macos-latest"]') }}
+          - os: windows-latest
+            runner: ${{ fromJSON(vars.CI_RUNNER_WIN_JSON || '["windows-latest"]') }}
 
     steps:
       - uses: actions/checkout@v4
@@ -209,7 +215,7 @@ jobs:
 
   publish:
     name: Publish GitHub Release Assets
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_JSON || '["ubuntu-latest"]') }}
     needs: [validate-release-meta, build-python-legacy, build-tauri]
 
     steps:
