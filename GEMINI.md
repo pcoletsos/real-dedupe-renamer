@@ -40,3 +40,7 @@ Quick prompt shorthand is defined in `CONTRIBUTING.md`:
 - `finish it for #<id>`
 
 Shared agent execution protocol: see the `Agent execution protocol` section in `AGENTS.md`.
+
+## CI Action Failure & Guardrail Rules
+
+- On any CI/Action failure, extract logs via `gh run view <run_id> --log-failed`, identify root cause, and implement pre-flight prevention.

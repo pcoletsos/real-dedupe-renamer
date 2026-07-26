@@ -75,3 +75,7 @@ Canonical spec and tooling live in `koletsos-portfolio`:
 - Protocol: https://github.com/pcoletsos/koletsos-portfolio/blob/main/docs/agent-execution-protocol.md
 - Scripts: https://github.com/pcoletsos/koletsos-portfolio/tree/main/scripts
   (`github-agent-receipt.ps1`, `github-agent-needs-input.ps1`, `github-agent-queue.ps1`)
+
+## CI Action Failure & Guardrail Rules
+
+- On any CI/Action failure, extract logs via `gh run view <run_id> --log-failed`, identify root cause, and implement pre-flight prevention.
